@@ -17,7 +17,7 @@ fn get_secrets_dir() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
         PathBuf::from(home).join(".config/lazydeck/secrets")
     } else {
-        PathBuf::from("/tmp/lazydeck_secrets")
+        std::env::temp_dir().join("lazydeck_secrets")
     }
 }
 

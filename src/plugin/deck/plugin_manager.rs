@@ -6,7 +6,7 @@ mod tests {
     /// Must be kept in sync with preset/lua/plugin_manager.lua
     const TEST_LUA: &str = r#"
 local data_dir = os.getenv('HOME') .. '/.local/share/lazydeck/plugins'
-local __lazydeck_config_base_dir = '/tmp/lazydeck-tests'
+local __lazydeck_config_base_dir = __lazydeck_test_tmpdir .. '/lazydeck-tests'
 
 local function is_absolute_path(path)
   return path:match '^/' or path:match '^%a:[/\\]'
@@ -130,6 +130,10 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
 "#;
 
     fn load_test_module(lua: &Lua) -> mlua::Result<(mlua::Function, mlua::Function, mlua::Function)> {
+        lua.globals().set(
+            "__lazydeck_test_tmpdir",
+            std::env::temp_dir().to_string_lossy().to_string(),
+        )?;
         let module: mlua::Table = lua.load(TEST_LUA).eval()?;
         let parse: mlua::Function = module.get("parse")?;
         let flatten: mlua::Function = module.get("flatten")?;
@@ -241,7 +245,11 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let is_remote: bool = result.get("is_remote")?;
 
         assert_eq!(name, "my-local");
-        assert_eq!(dir, "/tmp/lazydeck-tests/plugins/my-local.lazydeck");
+        let expected_dir = std::env::temp_dir()
+            .join("lazydeck-tests/plugins/my-local.lazydeck")
+            .to_string_lossy()
+            .to_string();
+        assert_eq!(dir, expected_dir);
         assert!(!is_remote);
 
         Ok(())

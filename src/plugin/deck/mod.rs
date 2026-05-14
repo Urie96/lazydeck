@@ -34,7 +34,7 @@ fn get_log_path() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
         PathBuf::from(home).join(".local/state/lazydeck/lua.log")
     } else {
-        PathBuf::from("/tmp/lazydeck.log")
+        std::env::temp_dir().join("lazydeck.log")
     }
 }
 

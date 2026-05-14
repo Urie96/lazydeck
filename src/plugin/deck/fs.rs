@@ -392,7 +392,7 @@ mod tests {
             let (path, err): (String, Option<String>) = tempfile.call(LuaNil).unwrap();
             assert!(err.is_none(), "Basic tempfile should not error");
             assert!(
-                path.contains("/tmp/") || path.contains("/T/"),
+                Path::new(&path).starts_with(std::env::temp_dir()),
                 "Path should be in temp dir"
             );
             assert!(Path::new(&path).exists(), "File should exist");

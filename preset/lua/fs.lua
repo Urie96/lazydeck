@@ -71,11 +71,11 @@ function fs.mkdir(path) return _deck.fs.mkdir(path) end
 ---@return string|nil error Error message if failed
 ---[[
 -- Examples:
---   local path = deck.fs.tempfile()                              -- → "/tmp/tmp.a1b2c3d4"
---   local path = deck.fs.tempfile({prefix = "memo"})             -- → "/tmp/memo.a1b2c3d4"
---   local path = deck.fs.tempfile({suffix = ".log"})             -- → "/tmp/tmp.a1b2c3d4.log"
---   local path = deck.fs.tempfile({prefix = "memo", suffix = ".md"}) -- → "/tmp/memo.a1b2c3d4.md"
---   local path = deck.fs.tempfile({content = "hello world"})    -- → "/tmp/tmp.a1b2c3d4" with content
+--   local path = deck.fs.tempfile()                              -- → "$TMPDIR/tmp.a1b2c3d4"
+--   local path = deck.fs.tempfile({prefix = "memo"})             -- → "$TMPDIR/memo.a1b2c3d4"
+--   local path = deck.fs.tempfile({suffix = ".log"})             -- → "$TMPDIR/tmp.a1b2c3d4.log"
+--   local path = deck.fs.tempfile({prefix = "memo", suffix = ".md"}) -- → "$TMPDIR/memo.a1b2c3d4.md"
+--   local path = deck.fs.tempfile({content = "hello world"})    -- → "$TMPDIR/tmp.a1b2c3d4" with content
 --]]
 function fs.tempfile(opts) return _deck.fs.tempfile(opts) end
 
@@ -85,8 +85,8 @@ function fs.tempfile(opts) return _deck.fs.tempfile(opts) end
 ---@return string|nil error Error message if failed
 ---[[
 -- Examples:
---   local ok, err = deck.fs.remove("/tmp/myfile.txt")     -- Remove file
---   local ok, err = deck.fs.remove("/tmp/mydir")          -- Remove directory recursively
+--   local ok, err = deck.fs.remove(temp_path) -- Remove file
+--   local ok, err = deck.fs.remove(temp_dir)  -- Remove directory recursively
 --   if ok then
 --     print("Removed successfully")
 --   else

@@ -13,7 +13,7 @@ function LuaSocket:close() return self:_close() end
 local socket = {}
 
 ---Connect to a socket endpoint.
----@param addr string Endpoint like `unix:/tmp/test.sock`
+---@param addr string Endpoint like `unix:$TMPDIR/test.sock`
 ---@return LuaSocket
 function socket.connect(addr)
   local sock = _deck.socket.connect(addr)

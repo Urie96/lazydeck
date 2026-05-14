@@ -98,7 +98,7 @@ Base64 相关封装：
 ```lua
 deck.base64.encode("hello")                  -- 编码
 deck.base64.decode("aGVsbG8=")               -- 解码为 Lua 字符串
-deck.fs.write_file_sync("/tmp/a.bin", deck.base64.decode("...")) -- 解码后写入文件
+local path = deck.fs.tempfile({ suffix = ".bin", content = deck.base64.decode("...") }) -- 解码后写入临时文件
 ```
 
 ### component.lua - UI 组件
@@ -491,7 +491,8 @@ deck.system.edit({ content = "hello", ext = ".lua" })
 复用 Unix socket 连接：
 
 ```lua
-local sock = deck.socket.connect("unix:/tmp/test.sock")
+local temp_path = deck.fs.tempfile({ prefix = "test", suffix = ".sock" })
+local sock = deck.socket.connect("unix:" .. temp_path)
 sock:on_line(function(line) print(line) end)
 sock:write("hello")
 sock:close()

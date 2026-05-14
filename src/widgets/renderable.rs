@@ -442,12 +442,18 @@ mod tests {
     #[test]
     fn image_descriptor_table_is_converted_to_preview() {
         let lua = Lua::new();
+        lua.globals()
+            .set(
+                "__lazydeck_test_tmpdir",
+                std::env::temp_dir().to_string_lossy().to_string(),
+            )
+            .expect("set temp dir");
         let preview: Box<dyn Renderable> = lua
             .load(
                 r#"
                 return {
                   __deck_type = "image",
-                  source = "/tmp/example.png",
+                  source = __lazydeck_test_tmpdir .. "/example.png",
                   max_height = 10,
                 }
                 "#,

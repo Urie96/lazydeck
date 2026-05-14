@@ -178,7 +178,7 @@ Base64 编解码：
 ```lua
 local encoded = deck.base64.encode("hello")
 local decoded = deck.base64.decode(encoded)
-deck.fs.write_file_sync("/tmp/demo.bin", decoded)
+deck.fs.tempfile({ suffix = ".bin", content = decoded })
 ```
 
 ### deck.http - HTTP 客户端
