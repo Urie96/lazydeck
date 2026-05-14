@@ -1,6 +1,6 @@
 # Plugin System
 
-lazycmd 的插件系统基于 Lua 运行时，允许用户通过 Lua 脚本扩展应用功能。
+lazydeck 的插件系统基于 Lua 运行时，允许用户通过 Lua 脚本扩展应用功能。
 
 ## 目录结构
 
@@ -9,7 +9,7 @@ src/plugin/
 ├── mod.rs      # 模块声明
 ├── lua.rs      # Lua 初始化和预设加载
 ├── scope.rs    # 作用域管理函数
-└── lc/         # Lua API 子模块
+└── deck/         # Lua API 子模块
     ├── api.rs          # 页面管理 API
     ├── cache.rs        # 缓存系统
     ├── fs.rs           # 文件系统操作
@@ -42,16 +42,16 @@ src/plugin/
 | 来源 | 路径 | 说明 |
 |------|------|------|
 | 本地（显式 `dir`） | 配置中的相对/绝对路径 | 通过 `{ dir = '...' }` 注入到 `package.path` |
-| **远程** | `~/.local/share/lazycmd/plugins/` | **从 GitHub 下载的插件** |
+| **远程** | `~/.local/share/lazydeck/plugins/` | **从 GitHub 下载的插件** |
 | 预设 | `preset/lua/` | 内置预设脚本（嵌入二进制） |
 
 **远程插件目录结构**：
 ```
-~/.local/share/lazycmd/plugins/
-└── owner-plugin.lazycmd/
+~/.local/share/lazydeck/plugins/
+└── owner-plugin.lazydeck/
     └── owner-plugin/
         └── init.lua       # 插件入口
-~/.config/lazycmd/plugins.lock        # 插件版本锁文件
+~/.config/lazydeck/plugins.lock        # 插件版本锁文件
 ```
 
 加载预设文件（debug 模式从文件读取，release 模式从嵌入的二进制读取）：
@@ -75,9 +75,9 @@ scope(lua, state, sender, || {
 
 ## LC API
 
-全局表 `lc` 提供以下子系统：
+全局表 `deck` 提供以下子系统：
 
-### lc.api - 页面管理
+### deck.api - 页面管理
 
 页面 entry 支持的常用字段：
 
@@ -103,12 +103,12 @@ scope(lua, state, sender, || {
 | `enter_filter_mode()` | 进入过滤模式 |
 | `exit_filter_mode()` | 退出过滤模式 |
 | `accept_filter()` | 应用过滤 |
-| `lc.hook.pre_reload(cb)` | 添加重载前钩子 |
-| `append_hook_pre_quit(cb)` | 添加退出前钩子（Lua 侧封装为 `lc.hook.pre_quit`） |
+| `deck.hook.pre_reload(cb)` | 添加重载前钩子 |
+| `append_hook_pre_quit(cb)` | 添加退出前钩子（Lua 侧封装为 `deck.hook.pre_quit`） |
 
-### lc.cache - 缓存系统
+### deck.cache - 缓存系统
 
-`lc.api` 里的路径数组都使用“原始 segment”：
+`deck.api` 里的路径数组都使用“原始 segment”：
 
 - Lua 插件调用 `go_to({ ... })` 时不需要手动做 URL 编码
 - `get_current_path()` / `get_hovered_path()` 返回的也是解码后的原始 segment
@@ -125,11 +125,11 @@ scope(lua, state, sender, || {
 
 ```lua
 -- 使用示例
-lc.cache.set("github.releases", "user_data", {name = "test"}, {ttl = 3600})  -- TTL 为秒
-local data = lc.cache.get("github.releases", "user_data")
+deck.cache.set("github.releases", "user_data", {name = "test"}, {ttl = 3600})  -- TTL 为秒
+local data = deck.cache.get("github.releases", "user_data")
 ```
 
-### lc.fs - 文件系统
+### deck.fs - 文件系统
 
 文件系统操作：
 
@@ -151,9 +151,9 @@ local data = lc.cache.get("github.releases", "user_data")
 - `is_writable` - 是否可写
 - `is_executable` - 是否可执行
 
-### lc.secrets - Secrets 存储
+### deck.secrets - Secrets 存储
 
-用于保存敏感字符串，按 namespace 分文件存储到 `~/.config/lazycmd/secrets/`。和 `lc.cache` 不同，`lc.secrets` 只接受字符串值，不支持 TTL。
+用于保存敏感字符串，按 namespace 分文件存储到 `~/.config/lazydeck/secrets/`。和 `deck.cache` 不同，`deck.secrets` 只接受字符串值，不支持 TTL。
 
 | 函数 | 说明 |
 |------|------|
@@ -162,11 +162,11 @@ local data = lc.cache.get("github.releases", "user_data")
 | `secrets.delete(namespace, key)` | 删除 secret |
 
 ```lua
-lc.secrets.set("github", "token", "ghp_xxx")
-local token = lc.secrets.get("github", "token")
+deck.secrets.set("github", "token", "ghp_xxx")
+local token = deck.secrets.get("github", "token")
 ```
 
-### lc.base64 - Base64 编解码
+### deck.base64 - Base64 编解码
 
 Base64 编解码：
 
@@ -176,12 +176,12 @@ Base64 编解码：
 | `base64.decode(encoded)` | Base64 解码为 Lua 字符串 |
 
 ```lua
-local encoded = lc.base64.encode("hello")
-local decoded = lc.base64.decode(encoded)
-lc.fs.write_file_sync("/tmp/demo.bin", decoded)
+local encoded = deck.base64.encode("hello")
+local decoded = deck.base64.decode(encoded)
+deck.fs.write_file_sync("/tmp/demo.bin", decoded)
 ```
 
-### lc.http - HTTP 客户端
+### deck.http - HTTP 客户端
 
 基于 reqwest 的异步 HTTP 客户端：
 
@@ -205,7 +205,7 @@ function on_response(response)
 end
 ```
 
-### lc.http_server - 本地 HTTP 服务
+### deck.http_server - 本地 HTTP 服务
 
 为插件提供本地稳定 URL。Rust 负责监听 `127.0.0.1` 端口和路由，Lua 负责注册 resolver 并异步返回响应。
 
@@ -238,7 +238,7 @@ end
 }
 ```
 
-### lc.html - HTML 解析
+### deck.html - HTML 解析
 
 基于 CSS selector 的 HTML 解析能力，适合从网页里提取结构化内容。
 
@@ -276,7 +276,7 @@ end
 | `list:get(index)` | 1-based 获取节点 |
 | `list:to_table()` | 转成 Lua 数组 |
 
-### lc.url - URL 编解码
+### deck.url - URL 编解码
 
 用于 URL 百分号编码和解码：
 
@@ -286,34 +286,34 @@ end
 | `url.decode(value)` | 解码百分号编码字符串 |
 
 ```lua
-local encoded = lc.url.encode("hello world")
-local decoded = lc.url.decode(encoded)
+local encoded = deck.url.encode("hello world")
+local decoded = deck.url.decode(encoded)
 ```
 
-### lc.keymap - 键盘映射
+### deck.keymap - 键盘映射
 
 | 函数 | 说明 |
 |------|------|
-| `lc.keymap.set(mode, key, callback[, opt])` | 设置键盘映射 |
+| `deck.keymap.set(mode, key, callback[, opt])` | 设置键盘映射 |
 
 ```lua
-lc.keymap.set('main', 'q', function() lc.cmd('quit') end)
-lc.keymap.set('main', 'j', 'scroll_by 1')
-lc.keymap.set('input', '<C-k>', function() lc.notify('input keymap hit') end)
-lc.keymap.set('input', '<enter>', 'input_submit')
-lc.keymap.set('main', '<C-x>', function() ... end)
-lc.keymap.set('main', '?', function() ... end, { desc = 'help' })
-lc.keymap.set('main', 'p', function() paste() end, { once = true, desc = 'paste once' })
+deck.keymap.set('main', 'q', function() deck.cmd('quit') end)
+deck.keymap.set('main', 'j', 'scroll_by 1')
+deck.keymap.set('input', '<C-k>', function() deck.notify('input keymap hit') end)
+deck.keymap.set('input', '<enter>', 'input_submit')
+deck.keymap.set('main', '<C-x>', function() ... end)
+deck.keymap.set('main', '?', function() ... end, { desc = 'help' })
+deck.keymap.set('main', 'p', function() paste() end, { once = true, desc = 'paste once' })
 ```
 
 - `mode` 支持 `main` / `m` 和 `input` / `i`
 - 输入框中 `Backspace`、`Left`、`Right` 为 Rust 内置键位
-- 其余默认动作通过 `preset/lua/config.lua` 用 `lc.keymap.set('input', ...)` 注册到内部命令或 Lua 回调，例如 `input_submit`、`input_cancel`；默认 `<C-g>` 通过 `lc.system.edit(...)` 调用外部编辑器编辑当前输入内容
+- 其余默认动作通过 `preset/lua/config.lua` 用 `deck.keymap.set('input', ...)` 注册到内部命令或 Lua 回调，例如 `input_submit`、`input_cancel`；默认 `<C-g>` 通过 `deck.system.edit(...)` 调用外部编辑器编辑当前输入内容
 
-`lc.config` 还支持 `keymap` 字段来覆盖内置主模式键位，例如：
+`deck.config` 还支持 `keymap` 字段来覆盖内置主模式键位，例如：
 
 ```lua
-lc.config {
+deck.config {
   keymap = {
     enter = '<enter>',
     filter = '/',
@@ -322,7 +322,7 @@ lc.config {
 }
 ```
 
-支持的键位名包括 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`，以及 `input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `lc.config` 都会按这些配置重新执行一遍 `lc.keymap.set`。
+支持的键位名包括 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`，以及 `input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会按这些配置重新执行一遍 `deck.keymap.set`。
 
 页面 entry 也可以定义局部 keymap：
 
@@ -342,10 +342,10 @@ lc.config {
 - `opt.once = true` 时，该全局 keymap 完整触发一次后会自动删除；如果存在相同按键的普通全局 keymap，删除后会恢复到普通全局 keymap
 - `opt.desc` 可为全局 keymap 提供帮助面板中的描述文本
 
-`lc.api` 额外提供当前上下文可用快捷键查询：
+`deck.api` 额外提供当前上下文可用快捷键查询：
 
 ```lua
-local items = lc.api.get_available_keymaps()
+local items = deck.api.get_available_keymaps()
 for _, item in ipairs(items) do
   print(item.key, item.desc, item.source)
 end
@@ -357,8 +357,8 @@ end
 {
   key = "song-1",
   preview = function(self, cb)
-    cb(lc.style.text {
-      lc.style.line { "Preview for ", self.key },
+    cb(deck.style.text {
+      deck.style.line { "Preview for ", self.key },
     })
   end,
 }
@@ -373,61 +373,61 @@ end
 - `entry.preview` 同样通过 Lua 表访问，支持由元表 `__index` 提供
 - 当异步回调返回时，如果当前 hovered entry 已经变化，这次 preview 更新会被丢弃
 
-### lc.path - 路径操作
+### deck.path - 路径操作
 
 | 函数 | 说明 |
 |------|------|
-| `lc.path.split(path)` | 分割路径为数组 |
-| `lc.path.join(path_list)` | 合并路径数组 |
+| `deck.path.split(path)` | 分割路径为数组 |
+| `deck.path.join(path_list)` | 合并路径数组 |
 
-### lc.style - UI 样式
+### deck.style - UI 样式
 
 创建 TUI 组件的函数：
 
 | 函数 | 说明 |
 |------|------|
-| `lc.style.span(s)` | 创建单个 Span |
-| `lc.style.line(args)` | 创建 Line（Span 数组） |
-| `lc.style.text(args)` | 创建 Text（Line 数组） |
-| `lc.style.image(path_or_url[, opts])` | 创建图片预览 widget，支持本地路径或 HTTP(S) URL；`opts` 支持 `max_width` / `max_height`（终端格），未显式指定时读取 `lc.config().image` 默认值 |
-| `lc.style.highlight(code, lang)` | 语法高亮代码 |
-| `lc.style.ansi(s)` | 解析 ANSI 转义序列 |
-| `lc.style.align_columns(lines)` | 对齐列 |
+| `deck.style.span(s)` | 创建单个 Span |
+| `deck.style.line(args)` | 创建 Line（Span 数组） |
+| `deck.style.text(args)` | 创建 Text（Line 数组） |
+| `deck.style.image(path_or_url[, opts])` | 创建图片预览 widget，支持本地路径或 HTTP(S) URL；`opts` 支持 `max_width` / `max_height`（终端格），未显式指定时读取 `deck.config().image` 默认值 |
+| `deck.style.highlight(code, lang)` | 语法高亮代码 |
+| `deck.style.ansi(s)` | 解析 ANSI 转义序列 |
+| `deck.style.align_columns(lines)` | 对齐列 |
 
 `Span` / `Line` userdata 支持的方法：
 - `:fg(color)` / `:bg(color)` - 设置颜色
 - `:bold()` / `:italic()` / `:underline()` - 添加文本样式
 
-### lc.system - 系统命令
+### deck.system - 系统命令
 
 | 函数 | 说明 |
 |------|------|
-| `lc.system.executable(cmd)` | 检查命令是否可执行 |
-| `lc.system.spawn(cmd)` | 启动后台命令并返回 pid |
-| `lc.system.kill(pid[, signal])` | 向进程发送信号，默认 `SIGTERM` |
-| `lc.system.open(path)` | 用默认应用打开文件 |
-| `lc.system.edit(opts[, callback])` | 用外部编辑器编辑文件内容；传 `path` 时直接原地编辑该文件；不传 `path` 时可用 `ext` 指定临时文件后缀以启用语法高亮；传 callback 时回调接收 `(content, error)`，不传时 Rust 不会读取编辑后内容 |
-| `lc.system.exec(opts)` | 异步执行命令 |
-| `lc.system.interactive(opts)` | 执行交互式命令 |
+| `deck.system.executable(cmd)` | 检查命令是否可执行 |
+| `deck.system.spawn(cmd)` | 启动后台命令并返回 pid |
+| `deck.system.kill(pid[, signal])` | 向进程发送信号，默认 `SIGTERM` |
+| `deck.system.open(path)` | 用默认应用打开文件 |
+| `deck.system.edit(opts[, callback])` | 用外部编辑器编辑文件内容；传 `path` 时直接原地编辑该文件；不传 `path` 时可用 `ext` 指定临时文件后缀以启用语法高亮；传 callback 时回调接收 `(content, error)`，不传时 Rust 不会读取编辑后内容 |
+| `deck.system.exec(opts)` | 异步执行命令 |
+| `deck.system.interactive(opts)` | 执行交互式命令 |
 
-### lc.socket - 长连接 Socket
+### deck.socket - 长连接 Socket
 
 | 函数 | 说明 |
 |------|------|
-| `lc.socket.connect(addr)` | 连接 socket，返回可复用连接对象 |
+| `deck.socket.connect(addr)` | 连接 socket，返回可复用连接对象 |
 
 连接对象方法：
 - `sock:on_line(cb)` - 注册逐行回调
 - `sock:write(message)` - 写入一条消息（自动补 `\n`）
 - `sock:close()` - 关闭连接
 
-### lc.time - 时间处理
+### deck.time - 时间处理
 
 | 函数 | 说明 |
 |------|------|
-| `lc.time.parse(str)` | 解析时间字符串为 Unix 时间戳 |
-| `lc.time.now()` | 获取当前 Unix 时间戳 |
-| `lc.time.format(ts, fmt)` | 格式化时间戳 |
+| `deck.time.parse(str)` | 解析时间字符串为 Unix 时间戳 |
+| `deck.time.now()` | 获取当前 Unix 时间戳 |
+| `deck.time.format(ts, fmt)` | 格式化时间戳 |
 
 支持的时间格式：
 - ISO 8601: `2023-12-25T15:30:45Z`
@@ -437,40 +437,40 @@ end
 - 紧凑格式: `compact`（自动适配显示格式）
 - 相对时间格式: `relative`（例如 `47 minutes ago`、`yesterday`、`last week`、`in 2 hours`）
 
-### lc.cache - 缓存
+### deck.cache - 缓存
 
 | 函数 | 说明 |
 |------|------|
-| `lc.cache.get(namespace, key)` | 获取缓存 |
-| `lc.cache.set(namespace, key, value, opts)` | 设置缓存 |
-| `lc.cache.delete(namespace, key)` | 删除缓存 |
-| `lc.cache.clear(namespace)` | 清空指定 namespace 的缓存 |
+| `deck.cache.get(namespace, key)` | 获取缓存 |
+| `deck.cache.set(namespace, key, value, opts)` | 设置缓存 |
+| `deck.cache.delete(namespace, key)` | 删除缓存 |
+| `deck.cache.clear(namespace)` | 清空指定 namespace 的缓存 |
 
 ### 其他函数
 
 | 函数 | 说明 |
 |------|------|
-| `lc.defer_fn(fn, ms)` | 延迟执行函数 |
-| `lc.cmd(cmd)` | 发送内部命令 |
-| `lc.split(s, sep)` | 分割字符串 |
-| `lc.log(level, msg, ...)` | 写入日志 |
-| `lc.osc52_copy(text)` | 通过 OSC 52 复制到剪贴板 |
-| `lc.tbl_extend(behavior, ...)` | 浅合并多个表 |
-| `lc.tbl_deep_extend(behavior, ...)` | 深合并多个表 |
-| `lc.deep_equal(a, b)` | 深度比较两个值 |
-| `lc.tbl_map(func, t)` | 映射表值 |
-| `lc.tbl_filter(func, t)` | 过滤列表 |
-| `lc.list_extend(dst, src)` | 追加列表内容 |
-| `lc.notify(msg)` | 显示通知 (支持 string、Span、Line 或 Text 类型) |
-| `lc.confirm(opts)` | 显示确认对话框 |
-| `lc.select(opts, callback)` | 显示选择对话框 |
-| `lc.input(opts)` / `lc.input.show(opts)` | 显示输入对话框 |
-| `lc.input.get()` | 获取当前输入对话框文本；未打开时返回 `nil` |
-| `lc.input.set(value)` | 设置当前输入对话框文本，并触发 `on_change`；未打开时抛错 |
+| `deck.defer_fn(fn, ms)` | 延迟执行函数 |
+| `deck.cmd(cmd)` | 发送内部命令 |
+| `deck.split(s, sep)` | 分割字符串 |
+| `deck.log(level, msg, ...)` | 写入日志 |
+| `deck.osc52_copy(text)` | 通过 OSC 52 复制到剪贴板 |
+| `deck.tbl_extend(behavior, ...)` | 浅合并多个表 |
+| `deck.tbl_deep_extend(behavior, ...)` | 深合并多个表 |
+| `deck.deep_equal(a, b)` | 深度比较两个值 |
+| `deck.tbl_map(func, t)` | 映射表值 |
+| `deck.tbl_filter(func, t)` | 过滤列表 |
+| `deck.list_extend(dst, src)` | 追加列表内容 |
+| `deck.notify(msg)` | 显示通知 (支持 string、Span、Line 或 Text 类型) |
+| `deck.confirm(opts)` | 显示确认对话框 |
+| `deck.select(opts, callback)` | 显示选择对话框 |
+| `deck.input(opts)` / `deck.input.show(opts)` | 显示输入对话框 |
+| `deck.input.get()` | 获取当前输入对话框文本；未打开时返回 `nil` |
+| `deck.input.set(value)` | 设置当前输入对话框文本，并触发 `on_change`；未打开时抛错 |
 
 ## 内部命令
 
-通过 `lc.cmd()` 发送：
+通过 `deck.cmd()` 发送：
 
 | 命令 | 说明 |
 |------|------|
@@ -498,8 +498,8 @@ function hello() {
     print("Hello World");
 }
 ]]
-local highlighted = lc.style.highlight(code, "javascript")
-lc.api.set_preview(nil, highlighted)
+local highlighted = deck.style.highlight(code, "javascript")
+deck.api.set_preview(nil, highlighted)
 ```
 
 ## 使用示例
@@ -510,14 +510,14 @@ local M = {}
 
 function M.setup()
     -- 设置键盘映射
-    lc.keymap.set('main', 'r', function()
-        lc.cmd('reload')
+    deck.keymap.set('main', 'r', function()
+        deck.cmd('reload')
     end)
     
     -- 异步获取数据
-    lc.http.get("https://api.example.com/data", function(resp)
+    deck.http.get("https://api.example.com/data", function(resp)
         if resp.success then
-            local data = lc.json.decode(resp.body)
+            local data = deck.json.decode(resp.body)
             -- 处理数据
         end
     end)
@@ -525,7 +525,7 @@ end
 
 function M.list(path, cb)
     -- 列出目录内容
-    lc.fs.read_dir_sync(path, function(entries, err)
+    deck.fs.read_dir_sync(path, function(entries, err)
         if err then
             cb({})
             return

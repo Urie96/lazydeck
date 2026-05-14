@@ -18,7 +18,7 @@ fn encode(_lua: &Lua, data: LuaString) -> mlua::Result<String> {
     Ok(encoded)
 }
 
-/// Create the lc.base64 table
+/// Create the deck.base64 table
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
     let decode_fn = lua.create_function(decode)?.into_lua(lua)?;
     let encode_fn = lua.create_function(encode)?.into_lua(lua)?;

@@ -1,13 +1,13 @@
 ---@alias Mode "main"|"input"
 
----@class lc.keymap
+---@class deck.keymap
 local keymap = {}
 
 ---@class KeymapOptions
 ---@field desc? string Human readable description for help panels
 ---@field once? boolean Remove this global keymap after it is triggered once
 
----@class lc.ConfigKeymap
+---@class deck.ConfigKeymap
 ---@field up? string
 ---@field down? string
 ---@field top? string
@@ -33,8 +33,8 @@ local keymap = {}
 ---@param key string The key sequence (e.g., "ctrl-d", "down", "j")
 ---@param callback string|fun() The command string or callback function
 ---@param opt? KeymapOptions Optional keymap metadata
-function keymap.set(mode, key, callback, opt) return _lc.keymap.set(mode, key, callback, opt) end
+function keymap.set(mode, key, callback, opt) return _deck.keymap.set(mode, key, callback, opt) end
 
 ---@alias EntryKeymap table<string, fun()>
 
-lc.keymap = keymap
+deck.keymap = keymap

@@ -1,4 +1,4 @@
-# lazycmd
+# lazydeck
 
 一个基于 Rust + Lua 的终端 UI (TUI) 文件管理器/命令面板，灵感来源于 [yazi](https://github.com/sxyazi/yazi)。
 
@@ -11,7 +11,7 @@
 - 🔌 **Lua 插件系统** - 使用 LuaJIT 脚本语言扩展功能
 - 🎨 **语法高亮** - 内置 180+ 种编程语言语法高亮支持
 - 🖥️ **现代化 UI** - 使用 ratatui 构建的美观终端界面
-- ⌨️ **可配置键位导航** - 默认支持方向键、`gg`/`G`、`/` 等，并可通过 `lc.config.keymap` 覆盖
+- ⌨️ **可配置键位导航** - 默认支持方向键、`gg`/`G`、`/` 等，并可通过 `deck.config.keymap` 覆盖
 - 💾 **页面缓存** - 目录导航时保持状态和滚动位置
 
 ## 预览
@@ -42,8 +42,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/urie/lazycmd.git
-cd lazycmd
+git clone https://github.com/urie/lazydeck.git
+cd lazydeck
 
 # 构建
 cargo build --release
@@ -64,7 +64,7 @@ cargo run --release -- /docker/container
 ## 项目结构
 
 ```
-lazycmd/
+lazydeck/
 ├── src/                    # Rust 源代码
 │   ├── main.rs            # 入口点
 │   ├── app.rs             # 主应用逻辑
@@ -74,7 +74,7 @@ lazycmd/
 │   ├── plugin/            # Lua 插件系统
 │   │   ├── lua.rs        # Lua 初始化和路径配置
 │   │   ├── scope.rs      # 作用域管理
-│   │   └── lc/           # Lua API 实现
+│   │   └── deck/           # Lua API 实现
 │   └── widgets/           # UI 组件
 └── preset/                # 预设文件
     ├── lua/              # Lua 预设脚本
@@ -91,10 +91,10 @@ lazycmd/
 
 ### 插件系统
 
-lazycmd 的核心功能通过 Lua 插件实现。每个插件是一个包含 `init.lua` 的目录：
+lazydeck 的核心功能通过 Lua 插件实现。每个插件是一个包含 `init.lua` 的目录：
 
 ```
-plugins/owner/myplugin.lazycmd/
+plugins/owner/myplugin.lazydeck/
 └── myplugin/
     └── init.lua
 ```
@@ -138,27 +138,27 @@ return M
 
 ### LC API
 
-全局表 `lc` 提供丰富的 API：
+全局表 `deck` 提供丰富的 API：
 
 | 模块        | 功能              |
 | ----------- | ----------------- |
-| `lc.api`    | 页面管理、导航    |
-| `lc.fs`     | 文件系统操作      |
-| `lc.http`   | HTTP 请求         |
-| `lc.html`   | HTML 解析与选择器 |
-| `lc.system` | 执行外部命令      |
-| `lc.cache`  | 持久化缓存        |
-| `lc.time`   | 时间解析格式化    |
-| `lc.style`  | UI 样式和语法高亮 |
-| `lc.keymap` | 键盘映射          |
-| `lc.json`   | JSON 编解码       |
-| `lc.cmd`    | 发送内部命令      |
+| `deck.api`    | 页面管理、导航    |
+| `deck.fs`     | 文件系统操作      |
+| `deck.http`   | HTTP 请求         |
+| `deck.html`   | HTML 解析与选择器 |
+| `deck.system` | 执行外部命令      |
+| `deck.cache`  | 持久化缓存        |
+| `deck.time`   | 时间解析格式化    |
+| `deck.style`  | UI 样式和语法高亮 |
+| `deck.keymap` | 键盘映射          |
+| `deck.json`   | JSON 编解码       |
+| `deck.cmd`    | 发送内部命令      |
 
 另外内置全局 `Promise`，正常使用时直接访问即可，不需要 `require`。
 
 ## 内置插件
 
-lazycmd 自带多个示例插件：
+lazydeck 自带多个示例插件：
 
 | 插件       | 说明             |
 | ---------- | ---------------- |
@@ -197,10 +197,10 @@ lazycmd 自带多个示例插件：
 
 ## 配置
 
-在 `config/init.lua` 中配置（对应 `~/.config/lazycmd/init.lua`）：
+在 `config/init.lua` 中配置（对应 `~/.config/lazydeck/init.lua`）：
 
 ```lua
-lc.config {
+deck.config {
   keymap = {
     enter = '<enter>',
     filter = '/',
@@ -208,12 +208,12 @@ lc.config {
   },
   plugins = {
     -- 远程插件字符串语法
-    'owner/process.lazycmd',
-    'owner/memos.lazycmd',
+    'owner/process.lazydeck',
+    'owner/memos.lazydeck',
 
     -- 完整表格式
     {
-      'owner/myplugin.lazycmd',
+      'owner/myplugin.lazydeck',
       config = function()
         require('myplugin').setup { option = value }
       end,
@@ -221,55 +221,55 @@ lc.config {
 
     -- 本地目录插件：必须显式使用 dir
     {
-      dir = 'plugins/myplugin.lazycmd',   -- 相对路径基于 ~/.config/lazycmd/
+      dir = 'plugins/myplugin.lazydeck',   -- 相对路径基于 ~/.config/lazydeck/
     },
     {
       'myplugin',
-      dir = '/absolute/path/to/myplugin.lazycmd',
+      dir = '/absolute/path/to/myplugin.lazydeck',
       config = function() require('myplugin').setup() end,
     },
 
     -- GitHub 远程插件
     {
-      'owner/remote-plugin.lazycmd',
+      'owner/remote-plugin.lazydeck',
       config = function() require('remote-plugin').setup() end,
     },
 
     -- 带版本约束
     {
-      'owner/versioned-plugin.lazycmd',
+      'owner/versioned-plugin.lazydeck',
       tag = '1.0.0',                       -- 指定 tag
       config = function() end,
     },
     {
-      'owner/dev-plugin.lazycmd',
+      'owner/dev-plugin.lazydeck',
       branch = 'develop',                  -- 指定分支
       config = function() end,
     },
     {
-      'owner/pinned-plugin.lazycmd',
+      'owner/pinned-plugin.lazydeck',
       commit = 'abc1234567890',            -- 锁定到具体 commit
       config = function() end,
     },
 
     -- 需要多个插件时，直接平铺列在 plugins 里
-    'owner/dep1.lazycmd',
-    'owner/dep2.lazycmd',
+    'owner/dep1.lazydeck',
+    'owner/dep2.lazydeck',
     {
-      'owner/my-plugin.lazycmd',
+      'owner/my-plugin.lazydeck',
       config = function() require('my-plugin').setup() end,
     },
   },
 }
 ```
 
-`keymap` 用于覆盖内置主模式快捷键。支持的字段有 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`。每次调用 `lc.config` 都会按当前 `keymap` 配置重新执行一遍 `lc.keymap.set(...)`。
+`keymap` 用于覆盖内置主模式快捷键。支持的字段有 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`。每次调用 `deck.config` 都会按当前 `keymap` 配置重新执行一遍 `deck.keymap.set(...)`。
 
 **语法说明**：
 
-- 字符串形式：`'owner/plugin.lazycmd'`
-- 表形式：`{ 'owner/plugin.lazycmd' }`
-- 本地目录形式：`{ dir = 'plugins/myplugin.lazycmd' }` 或 `{ 'myplugin', dir = '/abs/path/myplugin.lazycmd' }`
+- 字符串形式：`'owner/plugin.lazydeck'`
+- 表形式：`{ 'owner/plugin.lazydeck' }`
+- 本地目录形式：`{ dir = 'plugins/myplugin.lazydeck' }` 或 `{ 'myplugin', dir = '/abs/path/myplugin.lazydeck' }`
 - 字符串中包含 `/` 时，始终按 GitHub 仓库处理；本地文件路径不再从字符串推断
 - `dir` 只能是相对路径或绝对路径；相对路径基于配置目录解析
 - Lua 会根据 `plugins` 配置动态把本地 `dir` 和远程插件安装目录加入 `package.path`
@@ -280,13 +280,13 @@ lc.config {
 
 ### 插件管理器
 
-启动 lazycmd 后，会进入插件管理器界面：
+启动 lazydeck 后，会进入插件管理器界面：
 
 ```bash
-lazycmd                 # 进入插件管理器
-lazycmd --help          # 显示帮助
-lazycmd --version       # 显示版本
-lazycmd /docker/container   # 启动后直接进入指定页面
+lazydeck                 # 进入插件管理器
+lazydeck --help          # 显示帮助
+lazydeck --version       # 显示版本
+lazydeck /docker/container   # 启动后直接进入指定页面
 ````
 
 在插件管理器界面中：
@@ -308,8 +308,8 @@ lazycmd /docker/container   # 启动后直接进入指定页面
 
 **数据目录**：
 
-- 插件安装目录：`~/.local/share/lazycmd/plugins/`
-- 锁文件：`~/.config/lazycmd/plugins.lock`
+- 插件安装目录：`~/.local/share/lazydeck/plugins/`
+- 锁文件：`~/.config/lazydeck/plugins.lock`
 
 **远程插件认证**：
 
@@ -343,8 +343,8 @@ lazycmd /docker/container   # 启动后直接进入指定页面
 配置和插件通过软链接访问：
 
 ```bash
-config/    -> ~/.config/lazycmd/      # 用户配置
-plugins/   -> ~/.local/share/lazycmd/plugins/  # 插件安装目录
+config/    -> ~/.config/lazydeck/      # 用户配置
+plugins/   -> ~/.local/share/lazydeck/plugins/  # 插件安装目录
 ```
 
 修改配置或开发插件时，直接编辑这些目录下的文件。
@@ -353,10 +353,10 @@ plugins/   -> ~/.local/share/lazycmd/plugins/  # 插件安装目录
 
 ```bash
 # 查看 Rust 日志
-tail -f ~/.local/state/lazycmd/lazycmd.log
+tail -f ~/.local/state/lazydeck/lazydeck.log
 
 # 查看 Lua 日志
-tail -f ~/.local/state/lazycmd/lua.log
+tail -f ~/.local/state/lazydeck/lua.log
 ```
 
 ## 贡献

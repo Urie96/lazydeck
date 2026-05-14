@@ -2,85 +2,85 @@
 --- and allows installing, updating, and restoring plugins.
 
 local M = {}
-local pm -- will be set to lc._pm
+local pm -- will be set to deck._pm
 
 --- Setup the plugin manager UI with keybindings.
 --- @param plugins table Array of plugin spec tables from user config
 function M.setup(plugins)
-  pm = lc._pm
+  pm = deck._pm
   M.plugins = pm.flatten_plugins(plugins or {})
 
   M._update_status = {} -- Track per-plugin update check results
 
   -- U: Update all plugins
-  lc.keymap.set('main', 'U', function()
-    lc.notify(lc.style.line {
-      lc.style.span('⟳ '):fg 'cyan',
-      lc.style.span 'Updating all plugins...',
+  deck.keymap.set('main', 'U', function()
+    deck.notify(deck.style.line {
+      deck.style.span('⟳ '):fg 'cyan',
+      deck.style.span 'Updating all plugins...',
     })
     pm.update_all(plugins or {}, function()
       M._update_status = {}
-      lc.cmd 'reload'
+      deck.cmd 'reload'
     end)
   end)
 
   -- S: Restore all plugins from lock file
-  lc.keymap.set('main', 'S', function()
-    lc.confirm {
+  deck.keymap.set('main', 'S', function()
+    deck.confirm {
       title = 'Restore from Lock File',
       prompt = 'Restore all plugins to locked versions?',
       on_confirm = function()
-        lc.notify(lc.style.line {
-          lc.style.span('⟳ '):fg 'cyan',
-          lc.style.span 'Restoring from lock file...',
+        deck.notify(deck.style.line {
+          deck.style.span('⟳ '):fg 'cyan',
+          deck.style.span 'Restoring from lock file...',
         })
         pm.restore_all(plugins or {}, function()
           M._update_status = {}
-          lc.cmd 'reload'
+          deck.cmd 'reload'
         end)
       end,
     }
   end)
 
   -- u: Update current plugin
-  lc.keymap.set('main', 'u', function()
-    local entry = lc.api.get_hovered()
+  deck.keymap.set('main', 'u', function()
+    local entry = deck.api.get_hovered()
     if not entry then return end
 
     local spec = M.find_spec_by_name(entry.key)
     if not spec or not spec.is_remote then
-      lc.notify(lc.style.line {
-        lc.style.span('⊘ '):fg 'yellow',
-        lc.style.span(entry.key .. ' is a local plugin'),
+      deck.notify(deck.style.line {
+        deck.style.span('⊘ '):fg 'yellow',
+        deck.style.span(entry.key .. ' is a local plugin'),
       })
       return
     end
 
-    lc.notify(lc.style.line {
-      lc.style.span('⟳ '):fg 'cyan',
-      lc.style.span('Updating ' .. spec.name .. '...'),
+    deck.notify(deck.style.line {
+      deck.style.span('⟳ '):fg 'cyan',
+      deck.style.span('Updating ' .. spec.name .. '...'),
     })
     pm.update(spec, function(success)
       if success then
         M._update_status[spec.name] = nil -- Clear cached status
-        lc.notify(lc.style.line {
-          lc.style.span('✓ '):fg 'green',
-          lc.style.span(spec.name .. ' updated'),
+        deck.notify(deck.style.line {
+          deck.style.span('✓ '):fg 'green',
+          deck.style.span(spec.name .. ' updated'),
         })
       end
-      lc.cmd 'reload'
+      deck.cmd 'reload'
     end)
   end)
 
   -- i: Install current missing plugin
-  lc.keymap.set('main', 'i', function()
-    local entry = lc.api.get_hovered()
+  deck.keymap.set('main', 'i', function()
+    local entry = deck.api.get_hovered()
     if not entry then return end
 
     if entry.status ~= 'missing' then
-      lc.notify(lc.style.line {
-        lc.style.span('⊘ '):fg 'yellow',
-        lc.style.span(entry.key .. ' is already installed'),
+      deck.notify(deck.style.line {
+        deck.style.span('⊘ '):fg 'yellow',
+        deck.style.span(entry.key .. ' is already installed'),
       })
       return
     end
@@ -88,18 +88,18 @@ function M.setup(plugins)
     local spec = M.find_spec_by_name(entry.key)
     if not spec then return end
 
-    lc.notify(lc.style.line {
-      lc.style.span('⟳ '):fg 'cyan',
-      lc.style.span('Installing ' .. spec.name .. '...'),
+    deck.notify(deck.style.line {
+      deck.style.span('⟳ '):fg 'cyan',
+      deck.style.span('Installing ' .. spec.name .. '...'),
     })
     pm.install(spec, function(success)
       if success then
-        lc.notify(lc.style.line {
-          lc.style.span('✓ '):fg 'green',
-          lc.style.span(spec.name .. ' installed'),
+        deck.notify(deck.style.line {
+          deck.style.span('✓ '):fg 'green',
+          deck.style.span(spec.name .. ' installed'),
         })
       end
-      lc.cmd 'reload'
+      deck.cmd 'reload'
     end)
   end)
 end
@@ -159,12 +159,12 @@ function M.list(path, cb)
       status = status,
       repo = spec.repo,
       is_remote = spec.is_remote,
-      display = lc.style.line {
-        lc.style.span(status_icon .. ' '):fg(icon_color),
-        lc.style.span(spec.name):fg 'white',
-        lc.style.span(source_label):fg 'gray',
-        lc.style.span(constraint):fg 'yellow',
-        lc.style.span(lock_info):fg 'cyan',
+      display = deck.style.line {
+        deck.style.span(status_icon .. ' '):fg(icon_color),
+        deck.style.span(spec.name):fg 'white',
+        deck.style.span(source_label):fg 'gray',
+        deck.style.span(constraint):fg 'yellow',
+        deck.style.span(lock_info):fg 'cyan',
       },
     })
   end
@@ -178,7 +178,7 @@ end
 function M.preview(entry, cb)
   local spec = M.find_spec_by_name(entry.key)
   if not spec then
-    cb(lc.style.text { lc.style.line { lc.style.span('Plugin not found'):fg 'red' } })
+    cb(deck.style.text { deck.style.line { deck.style.span('Plugin not found'):fg 'red' } })
     return
   end
 
@@ -191,33 +191,33 @@ function M.preview(entry, cb)
 
     table.insert(
       lines,
-      lc.style.line {
-        lc.style.span('Plugin: '):fg 'cyan',
-        lc.style.span(spec.name):fg 'white',
+      deck.style.line {
+        deck.style.span('Plugin: '):fg 'cyan',
+        deck.style.span(spec.name):fg 'white',
       }
     )
 
     if spec.is_remote then
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('Repo:   '):fg 'cyan',
-          lc.style.span(spec.repo):fg 'white',
+        deck.style.line {
+          deck.style.span('Repo:   '):fg 'cyan',
+          deck.style.span(spec.repo):fg 'white',
         }
       )
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('URL:    '):fg 'cyan',
-          lc.style.span(spec.url):fg 'gray',
+        deck.style.line {
+          deck.style.span('URL:    '):fg 'cyan',
+          deck.style.span(spec.url):fg 'gray',
         }
       )
     else
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('Source: '):fg 'cyan',
-          lc.style.span('local'):fg 'white',
+        deck.style.line {
+          deck.style.span('Source: '):fg 'cyan',
+          deck.style.span('local'):fg 'white',
         }
       )
     end
@@ -225,108 +225,108 @@ function M.preview(entry, cb)
     local status_color = entry.status == 'installed' and 'green' or 'red'
     table.insert(
       lines,
-      lc.style.line {
-        lc.style.span('Status: '):fg 'cyan',
-        lc.style.span(entry.status):fg(status_color),
+      deck.style.line {
+        deck.style.span('Status: '):fg 'cyan',
+        deck.style.span(entry.status):fg(status_color),
       }
     )
 
     if spec.tag then
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('Tag:    '):fg 'cyan',
-          lc.style.span(spec.tag):fg 'yellow',
+        deck.style.line {
+          deck.style.span('Tag:    '):fg 'cyan',
+          deck.style.span(spec.tag):fg 'yellow',
         }
       )
     elseif spec.branch then
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('Branch: '):fg 'cyan',
-          lc.style.span(spec.branch):fg 'yellow',
+        deck.style.line {
+          deck.style.span('Branch: '):fg 'cyan',
+          deck.style.span(spec.branch):fg 'yellow',
         }
       )
     elseif spec.commit then
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('Commit: '):fg 'cyan',
-          lc.style.span(spec.commit):fg 'yellow',
+        deck.style.line {
+          deck.style.span('Commit: '):fg 'cyan',
+          deck.style.span(spec.commit):fg 'yellow',
         }
       )
     end
 
     if lock_entry then
-      table.insert(lines, lc.style.line {})
+      table.insert(lines, deck.style.line {})
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('Lock File:'):fg 'magenta',
+        deck.style.line {
+          deck.style.span('Lock File:'):fg 'magenta',
         }
       )
       if lock_entry.commit then
         table.insert(
           lines,
-          lc.style.line {
-            lc.style.span('   Commit: '):fg 'gray',
-            lc.style.span(lock_entry.commit):fg 'white',
+          deck.style.line {
+            deck.style.span('   Commit: '):fg 'gray',
+            deck.style.span(lock_entry.commit):fg 'white',
           }
         )
       end
       if lock_entry.branch then
         table.insert(
           lines,
-          lc.style.line {
-            lc.style.span('   Branch: '):fg 'gray',
-            lc.style.span(lock_entry.branch):fg 'white',
+          deck.style.line {
+            deck.style.span('   Branch: '):fg 'gray',
+            deck.style.span(lock_entry.branch):fg 'white',
           }
         )
       end
       if lock_entry.tag then
         table.insert(
           lines,
-          lc.style.line {
-            lc.style.span('   Tag:    '):fg 'gray',
-            lc.style.span(lock_entry.tag):fg 'white',
+          deck.style.line {
+            deck.style.span('   Tag:    '):fg 'gray',
+            deck.style.span(lock_entry.tag):fg 'white',
           }
         )
       end
     end
 
-    table.insert(lines, lc.style.line {})
+    table.insert(lines, deck.style.line {})
     table.insert(
       lines,
-      lc.style.line {
-        lc.style.span('Keybindings:'):fg 'magenta',
+      deck.style.line {
+        deck.style.span('Keybindings:'):fg 'magenta',
       }
     )
     table.insert(
       lines,
-      lc.style.line {
-        lc.style.span('   U'):fg 'green',
-        lc.style.span(' Update all plugins'):fg 'gray',
+      deck.style.line {
+        deck.style.span('   U'):fg 'green',
+        deck.style.span(' Update all plugins'):fg 'gray',
       }
     )
     table.insert(
       lines,
-      lc.style.line {
-        lc.style.span('   u'):fg 'green',
-        lc.style.span(' Update this plugin'):fg 'gray',
+      deck.style.line {
+        deck.style.span('   u'):fg 'green',
+        deck.style.span(' Update this plugin'):fg 'gray',
       }
     )
     table.insert(
       lines,
-      lc.style.line {
-        lc.style.span('   S'):fg 'green',
-        lc.style.span(' Restore all from lock file'):fg 'gray',
+      deck.style.line {
+        deck.style.span('   S'):fg 'green',
+        deck.style.span(' Restore all from lock file'):fg 'gray',
       }
     )
     table.insert(
       lines,
-      lc.style.line {
-        lc.style.span('   i'):fg 'green',
-        lc.style.span(' Install missing plugin'):fg 'gray',
+      deck.style.line {
+        deck.style.span('   i'):fg 'green',
+        deck.style.span(' Install missing plugin'):fg 'gray',
       }
     )
 
@@ -337,34 +337,34 @@ function M.preview(entry, cb)
       end
     end
 
-    return lc.style.text(lines)
+    return deck.style.text(lines)
   end
 
   -- Build update status lines helper
   local function build_update_lines(has_update, remote_info)
     local lines = {}
-    table.insert(lines, lc.style.line {})
+    table.insert(lines, deck.style.line {})
     if has_update then
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('New version available!'):fg 'yellow',
+        deck.style.line {
+          deck.style.span('New version available!'):fg 'yellow',
         }
       )
       if remote_info then
         table.insert(
           lines,
-          lc.style.line {
-            lc.style.span('  Remote: '):fg 'gray',
-            lc.style.span(remote_info):fg 'white',
+          deck.style.line {
+            deck.style.span('  Remote: '):fg 'gray',
+            deck.style.span(remote_info):fg 'white',
           }
         )
       end
     else
       table.insert(
         lines,
-        lc.style.line {
-          lc.style.span('Up to date'):fg 'green',
+        deck.style.line {
+          deck.style.span('Up to date'):fg 'green',
         }
       )
     end
@@ -389,7 +389,7 @@ function M.preview(entry, cb)
         remote_info = remote_info,
       }
 
-      local current_entry = lc.api.get_hovered()
+      local current_entry = deck.api.get_hovered()
       if current_entry and current_entry.key == entry.key then
         cb(build_lines(build_update_lines(has_update, remote_info)))
       end
@@ -399,5 +399,5 @@ function M.preview(entry, cb)
   end
 end
 
--- Attach _manager to the same underlying table that _lc points to.
-lc._manager = M
+-- Attach _manager to the same underlying table that _deck points to.
+deck._manager = M

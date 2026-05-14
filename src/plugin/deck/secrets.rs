@@ -15,9 +15,9 @@ struct SecretStore {
 
 fn get_secrets_dir() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".config/lazycmd/secrets")
+        PathBuf::from(home).join(".config/lazydeck/secrets")
     } else {
-        PathBuf::from("/tmp/lazycmd_secrets")
+        PathBuf::from("/tmp/lazydeck_secrets")
     }
 }
 

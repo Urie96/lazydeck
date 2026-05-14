@@ -39,7 +39,7 @@ fn editor_tempfile_path(path_hint: Option<&str>, ext_hint: Option<&str>) -> Path
         .unwrap_or_default();
 
     path.push(format!(
-        "lazycmd-edit-{}-{}{}",
+        "lazydeck-edit-{}-{}{}",
         std::process::id(),
         nanos,
         suffix
@@ -47,17 +47,17 @@ fn editor_tempfile_path(path_hint: Option<&str>, ext_hint: Option<&str>) -> Path
     path
 }
 
-/// Create the lc.system table with executable, open, exec, spawn, and kill functions
+/// Create the deck.system table with executable, open, exec, spawn, and kill functions
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
     let system_tbl = lua.create_table()?;
 
-    // lc.system.executable: check if a command is executable (synchronous)
+    // deck.system.executable: check if a command is executable (synchronous)
     let executable_fn = lua.create_function(|_, cmd: String| {
         // Check if command exists and is executable
         Ok(which::which(&cmd).is_ok())
     })?;
 
-    // lc.system.open: open a file using the system's default application
+    // deck.system.open: open a file using the system's default application
     let open_fn = lua.create_function(|_, file_path: String| {
         // Use the `open` crate to open the file with the system's default application
         open::that(&file_path).map_err(|e| {

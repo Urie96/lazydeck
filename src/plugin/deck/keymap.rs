@@ -8,10 +8,10 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
                 // Convert the callback to a LuaFunction
                 let callback = match cb {
                     LuaValue::String(s) => {
-                        // If it's a string, wrap it as: function() lc.cmd(s) end
+                        // If it's a string, wrap it as: function() deck.cmd(s) end
                         let cmd_str = s.to_str()?.to_string();
-                        let lc = lua.globals().get::<LuaTable>("lc")?;
-                        let cmd_fn = lc.get::<LuaFunction>("cmd")?;
+                        let deck = lua.globals().get::<LuaTable>("deck")?;
+                        let cmd_fn = deck.get::<LuaFunction>("cmd")?;
                         lua.create_function(move |_lua, ()| cmd_fn.call::<()>(cmd_str.clone()))?
                     }
                     LuaValue::Function(f) => f,

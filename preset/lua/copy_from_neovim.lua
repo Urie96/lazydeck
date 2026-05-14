@@ -4,7 +4,7 @@
 ---
 ---@param t table Table to check
 ---@return boolean `true` if `t` is empty
-function lc.tbl_isempty(t)
+function deck.tbl_isempty(t)
   if type(t) ~= 'table' then return false end
   return next(t) == nil
 end
@@ -19,7 +19,7 @@ end
 ---
 ---@param t? table
 ---@return boolean `true` if list-like table, else `false`.
-function lc.islist(t)
+function deck.islist(t)
   if type(t) ~= 'table' then return false end
 
   if next(t) == nil then return true end
@@ -37,7 +37,7 @@ end
 
 --- We only merge empty tables or tables that are not list-like (indexed by consecutive integers
 --- starting from 1)
-local function can_merge(v) return type(v) == 'table' and (lc.tbl_isempty(v) or not lc.islist(v)) end
+local function can_merge(v) return type(v) == 'table' and (deck.tbl_isempty(v) or not deck.islist(v)) end
 
 --- Recursive worker for tbl_extend
 --- @param behavior 'error'|'keep'|'force'
@@ -45,7 +45,7 @@ local function can_merge(v) return type(v) == 'table' and (lc.tbl_isempty(v) or 
 --- @param ... table<any,any>
 local function tbl_extend_rec(behavior, deep_extend, ...)
   local ret = {} --- @type table<any,any>
-  if lc._empty_dict_mt ~= nil and getmetatable(select(1, ...)) == lc._empty_dict_mt then ret = lc.empty_dict() end
+  if deck._empty_dict_mt ~= nil and getmetatable(select(1, ...)) == deck._empty_dict_mt then ret = deck.empty_dict() end
 
   for i = 1, select('#', ...) do
     local tbl = select(i, ...) --[[@as table<any,any>]]
@@ -78,7 +78,7 @@ local function tbl_extend(behavior, deep_extend, ...)
   if nargs < 2 then error(('wrong number of arguments (given %d, expected at least 3)'):format(1 + nargs)) end
 
   -- for i = 1, nargs do
-  --   lc.validate('after the second argument', select(i, ...), 'table')
+  --   deck.validate('after the second argument', select(i, ...), 'table')
   -- end
 
   return tbl_extend_rec(behavior, deep_extend, ...)
@@ -94,7 +94,7 @@ end
 ---      - "force": use value from the rightmost map
 ---@param ... table Two or more tables
 ---@return table : Merged table
-function lc.tbl_extend(behavior, ...) return tbl_extend(behavior, false, ...) end
+function deck.tbl_extend(behavior, ...) return tbl_extend(behavior, false, ...) end
 
 --- Merges recursively two or more tables.
 ---
@@ -103,7 +103,7 @@ function lc.tbl_extend(behavior, ...) return tbl_extend(behavior, false, ...) en
 --- like default and user configurations where lists should be treated as literals (i.e., are
 --- overwritten instead of merged).
 ---
----@see |lc.tbl_extend()|
+---@see |deck.tbl_extend()|
 ---
 ---@generic T1: table
 ---@generic T2: table
@@ -113,7 +113,7 @@ function lc.tbl_extend(behavior, ...) return tbl_extend(behavior, false, ...) en
 ---      - "force": use value from the rightmost map
 ---@param ... T2 Two or more tables
 ---@return T1|T2 (table) Merged table
-function lc.tbl_deep_extend(behavior, ...) return tbl_extend(behavior, true, ...) end
+function deck.tbl_deep_extend(behavior, ...) return tbl_extend(behavior, true, ...) end
 
 --- Deep compare values for equality
 ---
@@ -122,14 +122,14 @@ function lc.tbl_deep_extend(behavior, ...) return tbl_extend(behavior, true, ...
 ---@param a any First value
 ---@param b any Second value
 ---@return boolean `true` if values are equals, else `false`
-function lc.deep_equal(a, b)
+function deck.deep_equal(a, b)
   if a == b then return true end
   if type(a) ~= type(b) then return false end
   if type(a) == 'table' then
     --- @cast a table<any,any>
     --- @cast b table<any,any>
     for k, v in pairs(a) do
-      if not lc.deep_equal(v, b[k]) then return false end
+      if not deck.deep_equal(v, b[k]) then return false end
     end
     for k in pairs(b) do
       if a[k] == nil then return false end
@@ -145,7 +145,7 @@ end
 ---@param func fun(value: T): any Function
 ---@param t table<any, T> Table
 ---@return table : Table of transformed values
-function lc.tbl_map(func, t)
+function deck.tbl_map(func, t)
   local rettab = {} --- @type table<any,any>
   for k, v in pairs(t) do
     rettab[k] = func(v)
@@ -159,7 +159,7 @@ end
 ---@param func fun(value: T): boolean (function) Function
 ---@param t table<any, T> (table) Table
 ---@return T[] : Table of filtered values
-function lc.tbl_filter(func, t)
+function deck.tbl_filter(func, t)
   local rettab = {} --- @type table<any,any>
   for _, entry in pairs(t) do
     if func(entry) then rettab[#rettab + 1] = entry end
@@ -173,7 +173,7 @@ end
 ---@param start integer? Start index on src. Defaults to 1
 ---@param finish integer? Final index on src. Defaults to `#src`
 ---@return T dst
-function lc.list_extend(dst, src, start, finish)
+function deck.list_extend(dst, src, start, finish)
   for i = start or 1, finish or #src do
     table.insert(dst, src[i])
   end

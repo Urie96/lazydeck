@@ -4,8 +4,8 @@
 local pm = {}
 
 -- Plugin data directory and lock file path
-pm.config_dir = os.getenv('HOME') .. '/.config/lazycmd'
-pm.data_dir = os.getenv('HOME') .. '/.local/share/lazycmd/plugins'
+pm.config_dir = os.getenv('HOME') .. '/.config/lazydeck'
+pm.data_dir = os.getenv('HOME') .. '/.local/share/lazydeck/plugins'
 pm.lock_file = pm.config_dir .. '/plugins.lock'
 
 local git_env = {
@@ -36,7 +36,7 @@ local function explain_git_error(stderr)
 end
 
 local function git(cmd, callback)
-  lc.system(cmd, { env = git_env }, callback)
+  deck.system(cmd, { env = git_env }, callback)
 end
 
 local function is_absolute_path(path)
@@ -54,22 +54,22 @@ local function resolve_local_dir(dir)
 
   if is_absolute_path(dir) then return dir end
 
-  local base_dir = os.getenv('HOME') .. '/.config/lazycmd'
+  local base_dir = os.getenv('HOME') .. '/.config/lazydeck'
   return base_dir .. '/' .. dir
 end
 
 local function plugin_name_from_dir(dir)
   local normalized = dir:gsub('[\\/]+$', '')
   local basename = normalized:match '([^/\\]+)$' or normalized
-  return basename:match('^(.+)%.lazycmd$') or basename
+  return basename:match('^(.+)%.lazydeck$') or basename
 end
 
 --- Parse a plugin spec into a normalized structure.
 --- Supports four input formats:
----   1. String: 'owner/plugin.lazycmd' or 'local-plugin'
----   2. Table with single string: { 'owner/plugin.lazycmd' }
----   3. Local dir: { dir='plugins/my-plugin.lazycmd' }
----   4. Full table: { 'owner/plugin.lazycmd', branch='main', config=fn }
+---   1. String: 'owner/plugin.lazydeck' or 'local-plugin'
+---   2. Table with single string: { 'owner/plugin.lazydeck' }
+---   3. Local dir: { dir='plugins/my-plugin.lazydeck' }
+---   4. Full table: { 'owner/plugin.lazydeck', branch='main', config=fn }
 --- @param spec string|table Plugin declaration
 --- @return table|nil Parsed spec with fields: name, repo, branch, tag, commit, config, url, install_path, is_remote, dir
 function pm.parse_plugin_spec(spec)
@@ -92,7 +92,7 @@ function pm.parse_plugin_spec(spec)
     name = source or plugin_name_from_dir(dir)
   elseif source:find('/') then
     local repo_name = source:match('^[^/]+/(.+)$')
-    name = repo_name:match('^(.+)%.lazycmd$') or repo_name
+    name = repo_name:match('^(.+)%.lazydeck$') or repo_name
   else
     name = source
   end
@@ -104,7 +104,7 @@ function pm.parse_plugin_spec(spec)
     commit = spec.commit
     config_fn = spec.config
     if spec.dependencies ~= nil then
-      error("plugin spec no longer supports 'dependencies'; list all plugins directly in lc.config.plugins")
+      error("plugin spec no longer supports 'dependencies'; list all plugins directly in deck.config.plugins")
     end
   end
 
@@ -161,11 +161,11 @@ end
 --- Read the lock file.
 --- @return table Lock data: { plugin_name = { commit=..., branch=..., ... }, ... }
 function pm.read_lock()
-  local content, err = lc.fs.read_file_sync(pm.lock_file)
+  local content, err = deck.fs.read_file_sync(pm.lock_file)
   if err or not content or content == '' then
     return {}
   end
-  local ok, data = pcall(lc.json.decode, content)
+  local ok, data = pcall(deck.json.decode, content)
   if ok and type(data) == 'table' then
     return data
   end
@@ -175,9 +175,9 @@ end
 --- Write lock data to the lock file.
 --- @param lock_data table Lock data to write
 function pm.write_lock(lock_data)
-  lc.fs.mkdir(pm.config_dir)
-  local content = lc.json.encode(lock_data)
-  lc.fs.write_file_sync(pm.lock_file, content)
+  deck.fs.mkdir(pm.config_dir)
+  local content = deck.json.encode(lock_data)
+  deck.fs.write_file_sync(pm.lock_file, content)
 end
 
 --- Check if a remote plugin is installed (directory exists).
@@ -186,7 +186,7 @@ end
 function pm.is_installed(spec)
   if not spec.is_remote then return true end
   if not spec.install_path then return false end
-  local stat = lc.fs.stat(spec.install_path)
+  local stat = deck.fs.stat(spec.install_path)
   return stat.exists and stat.is_dir
 end
 
@@ -262,7 +262,7 @@ function pm.install(spec, callback)
     return
   end
 
-  lc.fs.mkdir(pm.data_dir)
+  deck.fs.mkdir(pm.data_dir)
 
   local cmd = { 'git', 'clone' }
 
@@ -292,10 +292,10 @@ function pm.install(spec, callback)
   git(cmd, function(out)
     if out.code ~= 0 then
       local err = explain_git_error(out.stderr)
-      lc.log('error', 'Failed to install {}: {}', spec.name, err)
-      lc.notify(lc.style.line({
-        lc.style.span('✗ '):fg('red'),
-        lc.style.span('Failed to install ' .. spec.name .. ': ' .. err),
+      deck.log('error', 'Failed to install {}: {}', spec.name, err)
+      deck.notify(deck.style.line({
+        deck.style.span('✗ '):fg('red'),
+        deck.style.span('Failed to install ' .. spec.name .. ': ' .. err),
       }))
       if callback then callback(false) end
       return
@@ -306,7 +306,7 @@ function pm.install(spec, callback)
       git({ 'git', '-C', spec.install_path, 'fetch', '--unshallow' }, function()
         git({ 'git', '-C', spec.install_path, 'checkout', spec.commit }, function(out2)
           if out2.code ~= 0 then
-            lc.log('error', 'Failed to checkout commit {} for {}: {}', spec.commit, spec.name, explain_git_error(out2.stderr))
+            deck.log('error', 'Failed to checkout commit {} for {}: {}', spec.commit, spec.name, explain_git_error(out2.stderr))
           end
           if callback then callback(out2.code == 0) end
         end)
@@ -328,9 +328,9 @@ function pm.update(spec, callback)
 
   if spec.commit then
     -- Commit-pinned plugins cannot be updated
-    lc.notify(lc.style.line({
-      lc.style.span('⊘ '):fg('yellow'),
-      lc.style.span(spec.name .. ' is pinned to commit ' .. spec.commit:sub(1, 7)),
+    deck.notify(deck.style.line({
+      deck.style.span('⊘ '):fg('yellow'),
+      deck.style.span(spec.name .. ' is pinned to commit ' .. spec.commit:sub(1, 7)),
     }))
     if callback then callback(false) end
     return
@@ -348,10 +348,10 @@ function pm.update(spec, callback)
   git({ 'git', '-C', install_path, 'fetch', '--tags', '--force' }, function(out)
     if out.code ~= 0 then
       local err = explain_git_error(out.stderr)
-      lc.log('error', 'Failed to fetch {}: {}', spec.name, err)
-      lc.notify(lc.style.line({
-        lc.style.span('✗ '):fg('red'),
-        lc.style.span('Failed to fetch ' .. spec.name .. ': ' .. err),
+      deck.log('error', 'Failed to fetch {}: {}', spec.name, err)
+      deck.notify(deck.style.line({
+        deck.style.span('✗ '):fg('red'),
+        deck.style.span('Failed to fetch ' .. spec.name .. ': ' .. err),
       }))
       if callback then callback(false) end
       return
@@ -360,10 +360,10 @@ function pm.update(spec, callback)
     local function on_done(out2)
       if out2.code ~= 0 then
         local err = explain_git_error(out2.stderr)
-        lc.log('error', 'Failed to update {}: {}', spec.name, err)
-        lc.notify(lc.style.line({
-          lc.style.span('✗ '):fg('red'),
-          lc.style.span('Failed to update ' .. spec.name .. ': ' .. err),
+        deck.log('error', 'Failed to update {}: {}', spec.name, err)
+        deck.notify(deck.style.line({
+          deck.style.span('✗ '):fg('red'),
+          deck.style.span('Failed to update ' .. spec.name .. ': ' .. err),
         }))
         if callback then callback(false) end
       else
@@ -404,16 +404,16 @@ function pm.restore(spec, lock_entry, callback)
   end
 
   if not lock_entry or not lock_entry.commit then
-    lc.notify(lc.style.line({
-      lc.style.span('⊘ '):fg('yellow'),
-      lc.style.span(spec.name .. ': no lock entry found'),
+    deck.notify(deck.style.line({
+      deck.style.span('⊘ '):fg('yellow'),
+      deck.style.span(spec.name .. ': no lock entry found'),
     }))
     if callback then callback(false) end
     return
   end
 
   local install_path = spec.install_path
-  local stat = lc.fs.stat(install_path)
+  local stat = deck.fs.stat(install_path)
 
   if not stat.exists then
     -- Clone then checkout to locked commit
@@ -423,7 +423,7 @@ function pm.restore(spec, lock_entry, callback)
           if callback then callback(out2.code == 0) end
         end)
       else
-        lc.log('error', 'Failed to clone {} for restore: {}', spec.name, explain_git_error(out.stderr))
+        deck.log('error', 'Failed to clone {} for restore: {}', spec.name, explain_git_error(out.stderr))
         if callback then callback(false) end
       end
     end)
@@ -549,9 +549,9 @@ function pm.install_specs(specs, callback)
   local total = #missing
   local successful = {}
 
-  lc.notify(lc.style.line({
-    lc.style.span('⟳ '):fg('cyan'),
-    lc.style.span('Installing ' .. total .. ' plugin(s) in parallel...'),
+  deck.notify(deck.style.line({
+    deck.style.span('⟳ '):fg('cyan'),
+    deck.style.span('Installing ' .. total .. ' plugin(s) in parallel...'),
   }))
 
   local function on_one_done(spec, success)
@@ -576,9 +576,9 @@ function pm.install_specs(specs, callback)
           message = 'Installed ' .. installed .. '/' .. total .. ' plugin(s)'
         end
 
-        lc.notify(lc.style.line({
-          lc.style.span(icon):fg(color),
-          lc.style.span(message),
+        deck.notify(deck.style.line({
+          deck.style.span(icon):fg(color),
+          deck.style.span(message),
         }))
         if callback then callback(all_ok) end
       end)
@@ -614,9 +614,9 @@ function pm.update_all(plugins, callback)
   local total = #remote
   local successful = {}
 
-  lc.notify(lc.style.line({
-    lc.style.span('⟳ '):fg('cyan'),
-    lc.style.span('Updating ' .. total .. ' plugin(s) in parallel...'),
+  deck.notify(deck.style.line({
+    deck.style.span('⟳ '):fg('cyan'),
+    deck.style.span('Updating ' .. total .. ' plugin(s) in parallel...'),
   }))
 
   local function on_one_done(spec, success)
@@ -626,9 +626,9 @@ function pm.update_all(plugins, callback)
 
     if completed >= total then
       pm.update_lock_for_plugins(successful, function()
-        lc.notify(lc.style.line({
-          lc.style.span('✓ '):fg('green'),
-          lc.style.span('Updated ' .. updated .. '/' .. total .. ' plugin(s)'),
+        deck.notify(deck.style.line({
+          deck.style.span('✓ '):fg('green'),
+          deck.style.span('Updated ' .. updated .. '/' .. total .. ' plugin(s)'),
         }))
         if callback then callback() end
       end)
@@ -659,9 +659,9 @@ function pm.restore_all(plugins, callback)
   local function restore_next()
     idx = idx + 1
     if idx > #remote then
-      lc.notify(lc.style.line({
-        lc.style.span('✓ '):fg('green'),
-        lc.style.span('Restored ' .. restored .. '/' .. #remote .. ' plugin(s) from lock file'),
+      deck.notify(deck.style.line({
+        deck.style.span('✓ '):fg('green'),
+        deck.style.span('Restored ' .. restored .. '/' .. #remote .. ' plugin(s) from lock file'),
       }))
       if callback then callback() end
       return
@@ -669,9 +669,9 @@ function pm.restore_all(plugins, callback)
 
     local spec = remote[idx]
     local lock_entry = lock[spec.name]
-    lc.notify(lc.style.line({
-      lc.style.span('⟳ '):fg('cyan'),
-      lc.style.span('Restoring ' .. spec.name .. ' (' .. idx .. '/' .. #remote .. ')...'),
+    deck.notify(deck.style.line({
+      deck.style.span('⟳ '):fg('cyan'),
+      deck.style.span('Restoring ' .. spec.name .. ' (' .. idx .. '/' .. #remote .. ')...'),
     }))
     pm.restore(spec, lock_entry, function(success)
       if success then restored = restored + 1 end
@@ -682,7 +682,7 @@ function pm.restore_all(plugins, callback)
   restore_next()
 end
 
--- Attach _pm to the same underlying table that _lc points to.
--- Use the global 'lc' directly since _lc and lc reference the same table.
--- The global 'lc' was registered by Rust's lc::register() via lua.globals().raw_set("_lc", lc).
-lc._pm = pm
+-- Attach _pm to the same underlying table that _deck points to.
+-- Use the global 'deck' directly since _deck and deck reference the same table.
+-- The global 'deck' was registered by Rust's deck::register() via lua.globals().raw_set("_deck", deck).
+deck._pm = pm

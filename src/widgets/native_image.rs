@@ -581,7 +581,7 @@ fn prepared_cache_path(key: &PreparedImageKey) -> Result<PathBuf> {
 fn prepared_cache_dir() -> Result<PathBuf> {
     let home = env::var("HOME")?;
     Ok(Path::new(&home)
-        .join(".cache/lazycmd")
+        .join(".cache/lazydeck")
         .join("prepared-images"))
 }
 
@@ -769,7 +769,7 @@ mod tests {
         }
 
         let path = std::env::temp_dir().join(format!(
-            "lazycmd-native-area-{}.png",
+            "lazydeck-native-area-{}.png",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("time went backwards")

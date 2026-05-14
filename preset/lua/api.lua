@@ -1,10 +1,10 @@
----@class lc.api
+---@class deck.api
 local api = {}
 local preview_runtime = {
   pending_image_downloads = {},
   failed_image_downloads = {},
 }
-local preview_image_cache_dir = os.getenv 'HOME' .. '/.cache/lazycmd/preview-images'
+local preview_image_cache_dir = os.getenv 'HOME' .. '/.cache/lazydeck/preview-images'
 
 ---@class PageEntry
 ---@field key string The unique key for the entry
@@ -17,26 +17,26 @@ local preview_image_cache_dir = os.getenv 'HOME' .. '/.cache/lazycmd/preview-ima
 ---Set the entries for a page
 ---@param path string[]|nil The page path, or nil for the current page
 ---@param entries PageEntry[]|nil The list of page entries, or nil to clear the page
-function api.set_entries(path, entries) return _lc.api.set_entries(path, entries) end
+function api.set_entries(path, entries) return _deck.api.set_entries(path, entries) end
 
 ---Get the currently hovered entry
 ---@return PageEntry? entry The hovered entry or nil
-function api.get_hovered() return _lc.api.get_hovered() end
+function api.get_hovered() return _deck.api.get_hovered() end
 
 ---Set hovered entry by full path
 ---@param path string[] The full path including the entry key
-function api.set_hovered(path) return _lc.api.set_hovered(path) end
+function api.set_hovered(path) return _deck.api.set_hovered(path) end
 
 ---Get the full entry list for a page before filtering
 ---@param path string[]|nil The page path, or nil for the current page
 ---@return PageEntry[]|nil entries The page entries
-function api.get_entries(path) return _lc.api.get_entries(path) end
+function api.get_entries(path) return _deck.api.get_entries(path) end
 
 ---Set the preview panel content
 ---@param path string[]|nil The hovered entry path, or nil for the current hovered entry
 ---@param widget string|Span|Text|Line|Image|(string|Span|Text|Line|Image)[]|nil The widget to display, or nil to clear the preview
 local function is_image_widget(value)
-  return type(value) == 'table' and value.__lc_type == 'image' and type(value.source) == 'string'
+  return type(value) == 'table' and value.__deck_type == 'image' and type(value.source) == 'string'
 end
 
 local function is_remote_image_source(source)
@@ -49,7 +49,7 @@ local function image_cache_key(url)
   if ext == 'jpg' then ext = 'jpeg' end
   local supported = { png = true, jpeg = true, gif = true, webp = true, bmp = true, tiff = true, tga = true }
   if not supported[ext] then ext = '' end
-  return lc.base64.encode(url):gsub('[+/=]', '_') .. (ext ~= '' and '.' .. ext or '')
+  return deck.base64.encode(url):gsub('[+/=]', '_') .. (ext ~= '' and '.' .. ext or '')
 end
 
 local function cached_image_path(url)
@@ -57,9 +57,9 @@ local function cached_image_path(url)
 end
 
 local function placeholder_for_image(message)
-  return lc.style.text {
-    lc.style.line {
-      lc.style.span(message or 'Loading image...'):fg 'dark_gray',
+  return deck.style.text {
+    deck.style.line {
+      deck.style.span(message or 'Loading image...'):fg 'dark_gray',
     },
   }
 end
@@ -67,7 +67,7 @@ end
 local function fetch_remote_image(url)
   local key = image_cache_key(url)
   local existing_path = cached_image_path(url)
-  local existing_stat = lc.fs.stat(existing_path)
+  local existing_stat = deck.fs.stat(existing_path)
   if existing_stat and existing_stat.exists and existing_stat.is_file then
     return Promise.resolve(existing_path)
   end
@@ -80,7 +80,7 @@ local function fetch_remote_image(url)
   end
 
   local promise = Promise.new(function(resolve, reject)
-    lc.http.get(url, function(response)
+    deck.http.get(url, function(response)
       preview_runtime.pending_image_downloads[key] = nil
 
       if not response.success or response.status < 200 or response.status >= 300 then
@@ -91,14 +91,14 @@ local function fetch_remote_image(url)
       end
 
       local path = cached_image_path(url)
-      local ok_mkdir, mkdir_err = lc.fs.mkdir(preview_image_cache_dir)
+      local ok_mkdir, mkdir_err = deck.fs.mkdir(preview_image_cache_dir)
       if not ok_mkdir then
         preview_runtime.failed_image_downloads[key] = mkdir_err
         reject(mkdir_err)
         return
       end
 
-      local ok_write, write_err = lc.fs.write_file_sync(path, response.body)
+      local ok_write, write_err = deck.fs.write_file_sync(path, response.body)
       if not ok_write then
         preview_runtime.failed_image_downloads[key] = write_err
         reject(write_err)
@@ -120,9 +120,9 @@ local function normalize_preview_value(value, pending_downloads)
 
     local key = image_cache_key(value.source)
     local cached_path = cached_image_path(value.source)
-    local stat = lc.fs.stat(cached_path)
+    local stat = deck.fs.stat(cached_path)
     if stat and stat.exists and stat.is_file then
-      return lc.style.image(cached_path, {
+      return deck.style.image(cached_path, {
         max_width = value.max_width,
         max_height = value.max_height,
       })
@@ -156,12 +156,12 @@ end
 function api.set_preview(path, widget)
   local target_path = path or api.get_hovered_path()
   local normalized, pending_downloads = resolve_preview_images(widget)
-  _lc.api.set_preview(target_path, normalized)
+  _deck.api.set_preview(target_path, normalized)
 
   if #pending_downloads == 0 then return end
 
   local function notify_preview_error(prefix, err)
-    lc.notify(prefix .. ': ' .. tostring(err or 'unknown error'))
+    deck.notify(prefix .. ': ' .. tostring(err or 'unknown error'))
   end
 
   Promise.allSettled(pending_downloads):next(function(results)
@@ -174,7 +174,7 @@ function api.set_preview(path, widget)
     end
 
     local refreshed = resolve_preview_images(widget)
-    _lc.api.set_preview(target_path, refreshed)
+    _deck.api.set_preview(target_path, refreshed)
 
     if first_error ~= nil then
       notify_preview_error('Failed to load image', first_error)
@@ -186,33 +186,33 @@ end
 
 ---Navigate to a specific path
 ---@param path string[] The path as an array of strings
-function api.go_to(path) return _lc.api.go_to(path) end
+function api.go_to(path) return _deck.api.go_to(path) end
 
 ---Clear the cached page for a specific path so the next navigation reloads it
 ---@param path string[] The path as an array of strings
-function api.clear_page_cache(path) return _lc.api.clear_page_cache(path) end
+function api.clear_page_cache(path) return _deck.api.clear_page_cache(path) end
 
 ---Get the current navigation path
 ---@return string[] path The current path
-function api.get_current_path() return _lc.api.get_current_path() end
+function api.get_current_path() return _deck.api.get_current_path() end
 
 ---Get the full path of the currently hovered entry
 ---@return string[]|nil path The full path or nil
-function api.get_hovered_path() return _lc.api.get_hovered_path() end
+function api.get_hovered_path() return _deck.api.get_hovered_path() end
 
 ---Get command line arguments
 ---@return string[] args Command line arguments (first element is program name)
-function api.argv() return _lc.api.argv() end
+function api.argv() return _deck.api.argv() end
 
 ---Set the filter string for the current page
 ---The page entries will be filtered based on this string
 ---If empty string, no filter is applied (show all entries)
 ---@param filter string The filter string to apply
-function api.set_filter(filter) _lc.api.set_filter(filter) end
+function api.set_filter(filter) _deck.api.set_filter(filter) end
 
 ---Get the current filter string for the current page
 ---@return string filter The current filter string, or empty string if none
-function api.get_filter() return _lc.api.get_filter() end
+function api.get_filter() return _deck.api.get_filter() end
 
 ---@class AvailableKeymap
 ---@field key string
@@ -223,28 +223,28 @@ function api.get_filter() return _lc.api.get_filter() end
 ---Get all currently available keymaps in the current context
 ---Entry-local keymaps are returned before global keymaps
 ---@return AvailableKeymap[]
-function api.get_available_keymaps() return _lc.api.get_available_keymaps() end
+function api.get_available_keymaps() return _deck.api.get_available_keymaps() end
 
-lc.api = api
-lc.hook = lc.hook or {}
+deck.api = api
+deck.hook = deck.hook or {}
 
 ---Append a hook callback to be called before reload command
 ---@param callback fun() The callback function to execute before reload
-function lc.hook.pre_reload(callback) _lc.api.append_hook_pre_reload(callback) end
+function deck.hook.pre_reload(callback) _deck.api.append_hook_pre_reload(callback) end
 
 ---Append a hook callback to be called before quit command
 ---@param callback fun() The callback function to execute before quit
-function lc.hook.pre_quit(callback) _lc.api.append_hook_pre_quit(callback) end
+function deck.hook.pre_quit(callback) _deck.api.append_hook_pre_quit(callback) end
 
 ---Append a hook callback to be called after entering a page
 ---@param callback fun(ctx: {path: string[]}) The callback function to execute
-function lc.hook.post_page_enter(callback) _lc.api.append_hook_post_page_enter(callback) end
+function deck.hook.post_page_enter(callback) _deck.api.append_hook_post_page_enter(callback) end
 
 ---Send an internal command to Rust
 ---@param command string The command string (e.g., "quit", "reload", "scroll_by 1")
-function lc.cmd(command) return _lc.cmd(command) end
+function deck.cmd(command) return _deck.cmd(command) end
 
 ---Execute a function after a delay
 ---@param callback fun() The function to execute
 ---@param delay_ms number Delay in milliseconds
-function lc.defer_fn(callback, delay_ms) return _lc.defer_fn(callback, delay_ms) end
+function deck.defer_fn(callback, delay_ms) return _deck.defer_fn(callback, delay_ms) end

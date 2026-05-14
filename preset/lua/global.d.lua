@@ -1,4 +1,4 @@
 ---@meta
-lc = {}
-_lc = {}
+deck = {}
+_deck = {}
 Promise = {}

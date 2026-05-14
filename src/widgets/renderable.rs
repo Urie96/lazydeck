@@ -103,7 +103,7 @@ impl PreviewChunk {
 }
 
 fn image_from_table(table: &LuaTable) -> mlua::Result<Option<LuaImage>> {
-    let kind: Option<String> = table.get("__lc_type").ok();
+    let kind: Option<String> = table.get("__deck_type").ok();
     if kind.as_deref() != Some("image") {
         return Ok(None);
     }
@@ -446,7 +446,7 @@ mod tests {
             .load(
                 r#"
                 return {
-                  __lc_type = "image",
+                  __deck_type = "image",
                   source = "/tmp/example.png",
                   max_height = 10,
                 }
@@ -467,7 +467,7 @@ mod tests {
         image.put_pixel(1, 1, Rgba([255, 255, 0, 255]));
 
         let path = std::env::temp_dir().join(format!(
-            "lazycmd-renderable-native-disabled-{}.png",
+            "lazydeck-renderable-native-disabled-{}.png",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("time went backwards")

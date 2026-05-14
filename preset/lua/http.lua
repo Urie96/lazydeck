@@ -12,40 +12,40 @@
 ---@field body string? Request body
 ---@field timeout number? Timeout in milliseconds (default: 30000)
 
----@class lc.http
+---@class deck.http
 local http = {}
 
 ---Send a GET request
 ---@param url string The request URL
 ---@param callback fun(response: HttpResponse) Callback function
-function http.get(url, callback) return _lc.http.get(url, callback) end
+function http.get(url, callback) return _deck.http.get(url, callback) end
 
 ---Send a POST request
 ---@param url string The request URL
 ---@param body string Request body
 ---@param callback fun(response: HttpResponse) Callback function
-function http.post(url, body, callback) return _lc.http.post(url, body, callback) end
+function http.post(url, body, callback) return _deck.http.post(url, body, callback) end
 
 ---Send a PUT request
 ---@param url string The request URL
 ---@param body string Request body
 ---@param callback fun(response: HttpResponse) Callback function
-function http.put(url, body, callback) return _lc.http.put(url, body, callback) end
+function http.put(url, body, callback) return _deck.http.put(url, body, callback) end
 
 ---Send a DELETE request
 ---@param url string The request URL
 ---@param callback fun(response: HttpResponse) Callback function
-function http.delete(url, callback) return _lc.http.delete(url, callback) end
+function http.delete(url, callback) return _deck.http.delete(url, callback) end
 
 ---Send a PATCH request
 ---@param url string The request URL
 ---@param body string Request body
 ---@param callback fun(response: HttpResponse) Callback function
-function http.patch(url, body, callback) return _lc.http.patch(url, body, callback) end
+function http.patch(url, body, callback) return _deck.http.patch(url, body, callback) end
 
 ---Send a custom HTTP request with full options
 ---@param opts RequestOptions The request options
 ---@param callback fun(response: HttpResponse) Callback function
-function http.request(opts, callback) return _lc.http.request(opts, callback) end
+function http.request(opts, callback) return _deck.http.request(opts, callback) end
 
-lc.http = http
+deck.http = http

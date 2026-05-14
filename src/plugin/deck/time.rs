@@ -74,7 +74,7 @@ fn relative_phrase(delta_seconds: i64) -> String {
     }
 }
 
-/// Create the lc.time table with time-related functions
+/// Create the deck.time table with time-related functions
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
     // Parse an ISO 8601 datetime string and return Unix timestamp
     let parse = lua.create_function(|_, time_str: String| {

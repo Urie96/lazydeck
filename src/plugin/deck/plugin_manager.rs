@@ -5,8 +5,8 @@ mod tests {
     /// Inline Lua implementation of parse_plugin_spec and flatten_plugins for testing.
     /// Must be kept in sync with preset/lua/plugin_manager.lua
     const TEST_LUA: &str = r#"
-local data_dir = os.getenv('HOME') .. '/.local/share/lazycmd/plugins'
-local __lazycmd_config_base_dir = '/tmp/lazycmd-tests'
+local data_dir = os.getenv('HOME') .. '/.local/share/lazydeck/plugins'
+local __lazydeck_config_base_dir = '/tmp/lazydeck-tests'
 
 local function is_absolute_path(path)
   return path:match '^/' or path:match '^%a:[/\\]'
@@ -23,14 +23,14 @@ local function resolve_local_dir(dir)
 
   if is_absolute_path(dir) then return dir end
 
-  local base_dir = rawget(_G, '__lazycmd_config_base_dir') or '.'
+  local base_dir = rawget(_G, '__lazydeck_config_base_dir') or '.'
   return base_dir .. '/' .. dir
 end
 
 local function plugin_name_from_dir(dir)
   local normalized = dir:gsub('[\\/]+$', '')
   local basename = normalized:match '([^/\\]+)$' or normalized
-  return basename:match('^(.+)%.lazycmd$') or basename
+  return basename:match('^(.+)%.lazydeck$') or basename
 end
 
 local function parse_plugin_spec(spec)
@@ -53,7 +53,7 @@ local function parse_plugin_spec(spec)
     name = source or plugin_name_from_dir(dir)
   elseif source:find('/') then
     local repo_name = source:match('^[^/]+/(.+)$')
-    name = repo_name:match('^(.+)%.lazycmd$') or repo_name
+    name = repo_name:match('^(.+)%.lazydeck$') or repo_name
   else
     name = source
   end
@@ -65,7 +65,7 @@ local function parse_plugin_spec(spec)
     commit = spec.commit
     config_fn = spec.config
     if spec.dependencies ~= nil then
-      error("plugin spec no longer supports 'dependencies'; list all plugins directly in lc.config.plugins")
+      error("plugin spec no longer supports 'dependencies'; list all plugins directly in deck.config.plugins")
     end
   end
 
@@ -143,7 +143,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (parse, _, _) = load_test_module(&lua)?;
 
         // Test: simple string input
-        let result: mlua::Table = parse.call("owner/my-plugin.lazycmd")?;
+        let result: mlua::Table = parse.call("owner/my-plugin.lazydeck")?;
         let name: String = result.get("name")?;
         assert_eq!(name, "my-plugin");
 
@@ -157,7 +157,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
 
         // Test: table with single string
         let spec = lua.create_table()?;
-        spec.set(1, "owner/my-plugin.lazycmd")?;
+        spec.set(1, "owner/my-plugin.lazydeck")?;
         let result: mlua::Table = parse.call(spec)?;
         let name: String = result.get("name")?;
         assert_eq!(name, "my-plugin");
@@ -171,7 +171,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (parse, _, _) = load_test_module(&lua)?;
 
         let spec = lua.create_table()?;
-        spec.set(1, "owner/my-plugin.lazycmd")?;
+        spec.set(1, "owner/my-plugin.lazydeck")?;
         spec.set("branch", "main")?;
         let result: mlua::Table = parse.call(spec)?;
 
@@ -182,7 +182,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let url: String = result.get("url")?;
 
         assert_eq!(name, "my-plugin");
-        assert_eq!(repo, "owner/my-plugin.lazycmd");
+        assert_eq!(repo, "owner/my-plugin.lazydeck");
         assert_eq!(branch, "main");
         assert!(is_remote);
         assert!(url.contains("github.com"));
@@ -233,7 +233,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (parse, _, _) = load_test_module(&lua)?;
 
         let spec = lua.create_table()?;
-        spec.set("dir", "plugins/my-local.lazycmd")?;
+        spec.set("dir", "plugins/my-local.lazydeck")?;
         let result: mlua::Table = parse.call(spec)?;
 
         let name: String = result.get("name")?;
@@ -241,7 +241,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let is_remote: bool = result.get("is_remote")?;
 
         assert_eq!(name, "my-local");
-        assert_eq!(dir, "/tmp/lazycmd-tests/plugins/my-local.lazycmd");
+        assert_eq!(dir, "/tmp/lazydeck-tests/plugins/my-local.lazydeck");
         assert!(!is_remote);
 
         Ok(())
@@ -254,13 +254,13 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
 
         let spec = lua.create_table()?;
         spec.set(1, "myplugin")?;
-        spec.set("dir", "/opt/plugins/custom.lazycmd")?;
+        spec.set("dir", "/opt/plugins/custom.lazydeck")?;
         let result: mlua::Table = parse.call(spec)?;
 
         let name: String = result.get("name")?;
         let dir: String = result.get("dir")?;
         assert_eq!(name, "myplugin");
-        assert_eq!(dir, "/opt/plugins/custom.lazycmd");
+        assert_eq!(dir, "/opt/plugins/custom.lazydeck");
 
         Ok(())
     }
@@ -271,7 +271,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (parse, _, _) = load_test_module(&lua)?;
 
         let spec = lua.create_table()?;
-        spec.set(1, "owner/versioned.lazycmd")?;
+        spec.set(1, "owner/versioned.lazydeck")?;
         spec.set("tag", "1.0.0")?;
         let result: mlua::Table = parse.call(spec)?;
 
@@ -287,7 +287,7 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (parse, _, _) = load_test_module(&lua)?;
 
         let spec = lua.create_table()?;
-        spec.set(1, "owner/pinned.lazycmd")?;
+        spec.set(1, "owner/pinned.lazydeck")?;
         spec.set("commit", "abc1234567890def")?;
         let result: mlua::Table = parse.call(spec)?;
 
@@ -315,10 +315,10 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (parse, _, _) = load_test_module(&lua)?;
 
         let spec = lua.create_table()?;
-        spec.set(1, "owner/plugin.lazycmd")?;
+        spec.set(1, "owner/plugin.lazydeck")?;
         let deps = lua.create_table()?;
-        deps.set(1, "owner/dep1.lazycmd")?;
-        deps.set(2, "owner/dep2.lazycmd")?;
+        deps.set(1, "owner/dep1.lazydeck")?;
+        deps.set(2, "owner/dep2.lazydeck")?;
         spec.set("dependencies", deps)?;
         let err = parse.call::<mlua::Value>(spec).unwrap_err();
         assert!(err.to_string().contains("no longer supports 'dependencies'"));
@@ -332,8 +332,8 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (_, flatten, _) = load_test_module(&lua)?;
 
         let plugins = lua.create_table()?;
-        plugins.set(1, "owner/main.lazycmd")?;
-        plugins.set(2, "owner/other.lazycmd")?;
+        plugins.set(1, "owner/main.lazydeck")?;
+        plugins.set(2, "owner/other.lazydeck")?;
 
         let result: Vec<mlua::Table> = flatten.call(plugins)?;
 
@@ -353,10 +353,10 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
 
         let plugins = lua.create_table()?;
 
-        plugins.set(1, "owner/shared.lazycmd")?;
-        plugins.set(2, "owner/p1.lazycmd")?;
-        plugins.set(3, "owner/shared.lazycmd")?;
-        plugins.set(4, "owner/p2.lazycmd")?;
+        plugins.set(1, "owner/shared.lazydeck")?;
+        plugins.set(2, "owner/p1.lazydeck")?;
+        plugins.set(3, "owner/shared.lazydeck")?;
+        plugins.set(4, "owner/p2.lazydeck")?;
 
         let result: Vec<mlua::Table> = flatten.call(plugins)?;
 
@@ -379,9 +379,9 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         let (_, _, remotes) = load_test_module(&lua)?;
 
         let plugins = lua.create_table()?;
-        plugins.set(1, "owner/main.lazycmd")?;
+        plugins.set(1, "owner/main.lazydeck")?;
         plugins.set(2, "local-helper")?;
-        plugins.set(3, "owner/dep.lazycmd")?;
+        plugins.set(3, "owner/dep.lazydeck")?;
 
         let result: Vec<mlua::Table> = remotes.call(plugins)?;
         assert_eq!(result.len(), 2);

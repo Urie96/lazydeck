@@ -3,12 +3,12 @@ local action = require 'demo.action'
 local config = require 'demo.config'
 
 local function span(text, color)
-  local s = lc.style.span(tostring(text or ''))
+  local s = deck.style.span(tostring(text or ''))
   if color and color ~= '' then s = s:fg(color) end
   return s
 end
-local function line(parts) return lc.style.line(parts) end
-local function text(lines) return lc.style.text(lines) end
+local function line(parts) return deck.style.line(parts) end
+local function text(lines) return deck.style.text(lines) end
 local function lines_from_string(content)
   local lines = {}
 
@@ -26,7 +26,7 @@ local metas = {
     __index = {
       keymap = {},
       preview = function(entry, cb)
-        lc.system.exec({ 'ls', '-la', entry.key }, function(output)
+        deck.system.exec({ 'ls', '-la', entry.key }, function(output)
           if output.code ~= 0 then
             cb(text {
               line { span('Failed to list directory', 'red') },
@@ -45,7 +45,7 @@ local metas = {
       keymap = {},
       preview = function(entry, cb)
         local cfg = config.get()
-        lc.fs.read_file(entry.key, { max_chars = cfg.preview_max_chars }, function(content, err, meta)
+        deck.fs.read_file(entry.key, { max_chars = cfg.preview_max_chars }, function(content, err, meta)
           if err then
             cb(text {
               line { span('Failed to read file', 'red') },

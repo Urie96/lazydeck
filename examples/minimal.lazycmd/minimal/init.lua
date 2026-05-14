@@ -7,7 +7,7 @@ function M.list(path, cb)
       display = ('Alpha Task'):fg 'cyan',
       keymap = {
         ['<right>'] = {
-          callback = function() lc.notify 'This demo keeps everything on /minimal' end,
+          callback = function() deck.notify 'This demo keeps everything on /minimal' end,
           desc = 'stay on current page',
         },
       },
@@ -18,7 +18,7 @@ function M.list(path, cb)
       display = ('Beta Job'):fg 'magenta',
       keymap = {
         ['<right>'] = {
-          callback = function() lc.notify 'This demo keeps everything on /minimal' end,
+          callback = function() deck.notify 'This demo keeps everything on /minimal' end,
           desc = 'stay on current page',
         },
       },
@@ -31,7 +31,7 @@ function M.list(path, cb)
       display = ('Gamma Note'):fg 'yellow',
       keymap = {
         ['<right>'] = {
-          callback = function() lc.notify 'This demo keeps everything on /minimal' end,
+          callback = function() deck.notify 'This demo keeps everything on /minimal' end,
           desc = 'stay on current page',
         },
       },

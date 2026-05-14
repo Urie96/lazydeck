@@ -183,7 +183,7 @@ mod tests {
         }
 
         let path = std::env::temp_dir().join(format!(
-            "lazycmd-image-limit-{}.png",
+            "lazydeck-image-limit-{}.png",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("time went backwards")
@@ -210,7 +210,7 @@ mod tests {
         }
 
         let path = std::env::temp_dir().join(format!(
-            "lazycmd-image-small-{}.png",
+            "lazydeck-image-small-{}.png",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("time went backwards")

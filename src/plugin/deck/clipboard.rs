@@ -21,7 +21,7 @@ fn set(_lua: &Lua, text: String) -> mlua::Result<()> {
         .map_err(|e| LuaError::RuntimeError(format!("Failed to set clipboard content: {}", e)))
 }
 
-/// Create the lc.clipboard table
+/// Create the deck.clipboard table
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
     let get_fn = lua.create_function(get)?.into_lua(lua)?;
     let set_fn = lua.create_function(set)?.into_lua(lua)?;

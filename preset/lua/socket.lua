@@ -9,14 +9,14 @@ function LuaSocket:write(message) return self:_write(message) end
 
 function LuaSocket:close() return self:_close() end
 
----@class lc.socket
+---@class deck.socket
 local socket = {}
 
 ---Connect to a socket endpoint.
 ---@param addr string Endpoint like `unix:/tmp/test.sock`
 ---@return LuaSocket
 function socket.connect(addr)
-  local sock = _lc.socket.connect(addr)
+  local sock = _deck.socket.connect(addr)
 
   return setmetatable({
     _raw = sock,
@@ -36,4 +36,4 @@ function socket.connect(addr)
   })
 end
 
-lc.socket = socket
+deck.socket = socket

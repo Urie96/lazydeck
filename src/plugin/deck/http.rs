@@ -258,7 +258,7 @@ fn request_fn(lua: &Lua, (opts, callback): (LuaTable, LuaFunction)) -> mlua::Res
     Ok(())
 }
 
-/// Create the lc.http table
+/// Create the deck.http table
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
     let get = lua.create_function(get_fn)?.into_lua(lua)?;
     let post = lua.create_function(post_fn)?.into_lua(lua)?;

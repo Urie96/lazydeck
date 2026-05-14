@@ -152,22 +152,22 @@ impl App {
     fn call_list(&mut self) -> Result<()> {
         anyhow::Context::context(
             plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
-                let lc: LuaTable = self.lua.globals().get("lc")?;
-                let list_fn: LuaFunction = lc.get("_list")?;
+                let deck: LuaTable = self.lua.globals().get("deck")?;
+                let list_fn: LuaFunction = deck.get("_list")?;
                 list_fn.call::<()>(())
             }),
-            "Failed to call lc._list",
+            "Failed to call deck._list",
         )
     }
 
     fn call_preview(&mut self) -> Result<()> {
         anyhow::Context::context(
             plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
-                let lc: LuaTable = self.lua.globals().get("lc")?;
-                let preview_fn: LuaFunction = lc.get("_preview")?;
+                let deck: LuaTable = self.lua.globals().get("deck")?;
+                let preview_fn: LuaFunction = deck.get("_preview")?;
                 preview_fn.call::<()>(())
             }),
-            "Failed to call lc._preview",
+            "Failed to call deck._preview",
         )
     }
 
@@ -373,7 +373,7 @@ impl App {
         let args: Vec<&String> = it.collect();
 
         // Temporarily ignore SIGINT during interactive command execution
-        // This prevents Ctrl-C from terminating lazycmd itself
+        // This prevents Ctrl-C from terminating lazydeck itself
         let mut old_action: libc::sigaction = unsafe { mem::zeroed() };
         let mut new_action: libc::sigaction = unsafe { mem::zeroed() };
 
@@ -416,7 +416,7 @@ impl App {
         };
 
         if should_wait {
-            println!("\nPress Enter to return to lazycmd...");
+            println!("\nPress Enter to return to lazydeck...");
             let _ = std::io::stdin().read_line(&mut String::new());
         }
 

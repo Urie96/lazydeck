@@ -1,6 +1,6 @@
-# lazycmd 源码指南
+# lazydeck 源码指南
 
-lazycmd 是一个基于 Rust 和 Lua 的终端 UI 应用，采用事件驱动架构。本文档介绍核心源代码结构。
+lazydeck 是一个基于 Rust 和 Lua 的终端 UI 应用，采用事件驱动架构。本文档介绍核心源代码结构。
 
 ## 目录结构
 
@@ -23,7 +23,7 @@ src/
 │   ├── mod.rs
 │   ├── lua.rs        # Lua 初始化
 │   ├── scope.rs      # 作用域管理
-│   └── lc/           # Lua API 实现
+│   └── deck/           # Lua API 实现
 └── widgets/          # UI 组件
     ├── mod.rs
     ├── renderable.rs # 可渲染 trait
@@ -115,7 +115,7 @@ App::run(events)
 路径处理约定：
 
 - `State.current_path` 保存解码后的原始 path segment
-- Lua 插件通过 `lc.api.go_to({ ... })` / `lc.api.get_current_path()` 读写的也都是原始 segment
+- Lua 插件通过 `deck.api.go_to({ ... })` / `deck.api.get_current_path()` 读写的也都是原始 segment
 - 当路径以字符串形式出现时（例如 header、命令行初始路径、`cd` 命令），Rust 侧会自动做 percent 编解码，避免插件手动处理
 
 ## 状态管理
@@ -210,7 +210,7 @@ plugin::scope(&lua, &mut state, &sender, || {
 ```rust
 plugin::scope(&lua, &mut state, &sender, || {
     // Lua 代码可访问：
-    // - lc 全局表（API）
+    // - deck 全局表（API）
     // - state（通过注册表）
     // - sender（事件发送）
 })?;
@@ -228,7 +228,7 @@ Event::LuaCallback(Box::new(move |lua| {
 
 ## 内部命令
 
-通过 `lc.cmd()` 或 `handle_command()` 执行：
+通过 `deck.cmd()` 或 `handle_command()` 执行：
 
 | 命令                    | 说明          |
 | ----------------------- | ------------- |
@@ -250,14 +250,14 @@ Event::LuaCallback(Box::new(move |lua| {
 ## 日志系统
 
 - 通知不再依赖高频 Render 轮询过期，而是在创建时注册一次性延迟回调，到期后发送事件移除。
-- **Rust 日志**：`~/.local/state/lazycmd/lazycmd.log`
+- **Rust 日志**：`~/.local/state/lazydeck/lazydeck.log`
 - 使用 `tracing` 库
 - 非阻塞写入
 
 ### 查看日志
 
 ```bash
-tail -f ~/.local/state/lazycmd/lazycmd.log
+tail -f ~/.local/state/lazydeck/lazydeck.log
 ```
 
 ## 错误处理

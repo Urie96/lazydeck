@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn parse_initial_path_defaults_to_root() {
         assert_eq!(
-            parse_initial_path(os_args(&["lazycmd"])).unwrap(),
+            parse_initial_path(os_args(&["lazydeck"])).unwrap(),
             Some(Vec::<String>::new())
         );
     }
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn parse_initial_path_splits_segments() {
         assert_eq!(
-            parse_initial_path(os_args(&["lazycmd", "/docker/container"])).unwrap(),
+            parse_initial_path(os_args(&["lazydeck", "/docker/container"])).unwrap(),
             Some(vec!["docker".to_string(), "container".to_string()])
         );
     }
@@ -163,21 +163,21 @@ mod tests {
     #[test]
     fn parse_initial_path_normalizes_repeated_slashes() {
         assert_eq!(
-            parse_initial_path(os_args(&["lazycmd", "docker//container/"])).unwrap(),
+            parse_initial_path(os_args(&["lazydeck", "docker//container/"])).unwrap(),
             Some(vec!["docker".to_string(), "container".to_string()])
         );
     }
 
     #[test]
     fn parse_initial_path_rejects_extra_args() {
-        assert!(parse_initial_path(os_args(&["lazycmd", "/docker", "/extra"])).is_err());
+        assert!(parse_initial_path(os_args(&["lazydeck", "/docker", "/extra"])).is_err());
     }
 
     #[test]
     fn parse_initial_path_decodes_percent_encoded_segments() {
         assert_eq!(
             parse_initial_path(os_args(&[
-                "lazycmd",
+                "lazydeck",
                 "/github/repo/tpope/vim-abolish/tags/feature%2Ftest"
             ]))
             .unwrap(),
@@ -194,21 +194,21 @@ mod tests {
 
     #[test]
     fn parse_initial_path_supports_help_flag() {
-        assert_eq!(parse_initial_path(os_args(&["lazycmd", "--help"])).unwrap(), None);
-        assert_eq!(parse_initial_path(os_args(&["lazycmd", "-h"])).unwrap(), None);
+        assert_eq!(parse_initial_path(os_args(&["lazydeck", "--help"])).unwrap(), None);
+        assert_eq!(parse_initial_path(os_args(&["lazydeck", "-h"])).unwrap(), None);
     }
 
     #[test]
     fn parse_initial_path_supports_version_flag() {
         assert_eq!(
-            parse_initial_path(os_args(&["lazycmd", "--version"])).unwrap(),
+            parse_initial_path(os_args(&["lazydeck", "--version"])).unwrap(),
             None
         );
-        assert_eq!(parse_initial_path(os_args(&["lazycmd", "-V"])).unwrap(), None);
+        assert_eq!(parse_initial_path(os_args(&["lazydeck", "-V"])).unwrap(), None);
     }
 
     #[test]
     fn parse_initial_path_rejects_unknown_option() {
-        assert!(parse_initial_path(os_args(&["lazycmd", "--wat"])).is_err());
+        assert!(parse_initial_path(os_args(&["lazydeck", "--wat"])).is_err());
     }
 }

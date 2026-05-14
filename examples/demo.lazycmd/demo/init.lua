@@ -4,12 +4,12 @@ local meta = require 'demo.meta'
 local M = {}
 
 local function span(text, color)
-  local s = lc.style.span(tostring(text or ''))
+  local s = deck.style.span(tostring(text or ''))
   if color and color ~= '' then s = s:fg(color) end
   return s
 end
 
-local function line(parts) return lc.style.line(parts) end
+local function line(parts) return deck.style.line(parts) end
 
 local function build_dir_entries(stdout)
   local entries = {}
@@ -41,9 +41,9 @@ function M.setup(opt)
 end
 
 function M.list(path, cb)
-  lc.system.exec({ 'ls', '-1A', '-p' }, function(output)
+  deck.system.exec({ 'ls', '-1A', '-p' }, function(output)
     if output.code ~= 0 then
-      lc.notify('Failed to list directory' .. output.stderr)
+      deck.notify('Failed to list directory' .. output.stderr)
       return
     end
 

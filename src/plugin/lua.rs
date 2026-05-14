@@ -1,9 +1,9 @@
 use mlua::Lua;
 
-use super::lc;
+use super::deck;
 
 pub fn init_lua(lua: &Lua) -> mlua::Result<()> {
-    lc::register(lua)?;
+    deck::register(lua)?;
 
     macro_rules! preset {
         ($name:literal) => {{
@@ -103,7 +103,7 @@ mod tests {
 
         for (idx, url) in urls.iter().enumerate() {
             let remote = lua.create_table()?;
-            remote.set("__lc_type", "image")?;
+            remote.set("__deck_type", "image")?;
             remote.set("source", *url)?;
             widget.set(idx + 2, remote)?;
         }
@@ -124,8 +124,8 @@ mod tests {
         let notifications_for_lua = notifications.clone();
 
         let globals = lua.globals();
-        let lc = lua.create_table()?;
-        lc.set("hook", lua.create_table()?)?;
+        let deck = lua.create_table()?;
+        deck.set("hook", lua.create_table()?)?;
 
         let base64 = lua.create_table()?;
         base64.set(
@@ -134,7 +134,7 @@ mod tests {
                 Ok(value.replace(|c: char| !c.is_ascii_alphanumeric(), "_"))
             })?,
         )?;
-        lc.set("base64", base64)?;
+        deck.set("base64", base64)?;
 
         let existing_files = lua.create_table()?;
         globals.set("__existing_files", existing_files.clone())?;
@@ -165,7 +165,7 @@ mod tests {
                 Ok((true, Option::<String>::None))
             })?,
         )?;
-        lc.set("fs", fs)?;
+        deck.set("fs", fs)?;
 
         let http_callbacks = lua.create_table()?;
         globals.set("__http_callbacks", http_callbacks.clone())?;
@@ -179,9 +179,9 @@ mod tests {
                 Ok(())
             })?,
         )?;
-        lc.set("http", http)?;
+        deck.set("http", http)?;
 
-        lc.set(
+        deck.set(
             "notify",
             lua.create_function(move |_, message: String| {
                 notifications_for_lua.borrow_mut().push(message);
@@ -254,7 +254,7 @@ mod tests {
             "image",
             lua.create_function(|lua, (path, opts): (String, Option<LuaTable>)| {
                 let image = lua.create_table()?;
-                image.set("__lc_type", "image")?;
+                image.set("__deck_type", "image")?;
                 image.set("source", path)?;
                 image.set(
                     "max_width",
@@ -271,10 +271,10 @@ mod tests {
                 Ok(image)
             })?,
         )?;
-        lc.set("style", style)?;
-        globals.set("lc", lc)?;
+        deck.set("style", style)?;
+        globals.set("deck", deck)?;
 
-        let raw_lc = lua.create_table()?;
+        let raw_deck = lua.create_table()?;
         let api = lua.create_table()?;
         api.set(
             "set_preview",
@@ -294,8 +294,8 @@ mod tests {
                 },
             )?,
         )?;
-        raw_lc.set("api", api)?;
-        globals.set("_lc", raw_lc)?;
+        raw_deck.set("api", api)?;
+        globals.set("_deck", raw_deck)?;
 
         lua.load(
             r#"
@@ -439,14 +439,14 @@ mod tests {
     fn util_preset_provides_unpack_compatibility() -> mlua::Result<()> {
         let lua = Lua::new();
         let globals = lua.globals();
-        globals.set("lc", lua.create_table()?)?;
+        globals.set("deck", lua.create_table()?)?;
 
-        let raw_lc = lua.create_table()?;
-        raw_lc.set(
+        let raw_deck = lua.create_table()?;
+        raw_deck.set(
             "osc52_copy",
             lua.create_function(|_, _text: String| Ok(()))?,
         )?;
-        globals.set("_lc", raw_lc)?;
+        globals.set("_deck", raw_deck)?;
 
         lua.load(&include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/preset/lua/util.lua"))[..])
             .set_name("preset/lua/util.lua")
@@ -471,14 +471,14 @@ mod tests {
         let lua = Lua::new();
         let globals = lua.globals();
 
-        globals.set("lc", lua.create_table()?)?;
+        globals.set("deck", lua.create_table()?)?;
 
-        let raw_lc = lua.create_table()?;
+        let raw_deck = lua.create_table()?;
         let style = lua.create_table()?;
         style.set("span", lua.create_function(|_, s: String| Ok(s))?)?;
         style.set("ansi", lua.create_function(|_, s: String| Ok(s))?)?;
-        raw_lc.set("style", style)?;
-        raw_lc.set(
+        raw_deck.set("style", style)?;
+        raw_deck.set(
             "split",
             lua.create_function(|lua, (s, sep): (String, String)| {
                 let parts = lua.create_table()?;
@@ -488,7 +488,7 @@ mod tests {
                 Ok(parts)
             })?,
         )?;
-        globals.set("_lc", raw_lc)?;
+        globals.set("_deck", raw_deck)?;
         globals.set("utf8", mlua::Value::Nil)?;
 
         lua.load(
@@ -522,7 +522,7 @@ mod tests {
         )?;
 
         env.lua
-            .load("lc.api.set_preview({ 'demo' }, test_widget)")
+            .load("deck.api.set_preview({ 'demo' }, test_widget)")
             .exec()?;
         assert_eq!(env.preview_call_count.get(), 1);
 
@@ -554,7 +554,7 @@ mod tests {
         install_test_widget(&env.lua, &["http://example.com/a.png"])?;
 
         env.lua
-            .load("lc.api.set_preview({ 'demo' }, test_widget)")
+            .load("deck.api.set_preview({ 'demo' }, test_widget)")
             .exec()?;
         assert_eq!(env.preview_call_count.get(), 1);
 

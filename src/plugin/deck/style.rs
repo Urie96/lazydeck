@@ -1,4 +1,4 @@
-use crate::plugin::lc::highlighter;
+use crate::plugin::deck::highlighter;
 use crate::widgets::{LuaLine, LuaSpan, LuaText};
 use ansi_to_tui::IntoText;
 use mlua::prelude::*;

@@ -11,9 +11,9 @@ const FLUSH_INTERVAL: Duration = Duration::from_secs(10);
 /// Get the cache directory path.
 fn get_cache_dir() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".cache/lazycmd/cache")
+        PathBuf::from(home).join(".cache/lazydeck/cache")
     } else {
-        PathBuf::from("/tmp/lazycmd_cache")
+        PathBuf::from("/tmp/lazydeck_cache")
     }
 }
 

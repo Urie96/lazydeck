@@ -1,6 +1,6 @@
 # Widget System
 
-lazycmd 使用 ratatui 库构建终端 UI。widgets 模块提供了可渲染到终端的各种 UI 组件。
+lazydeck 使用 ratatui 库构建终端 UI。widgets 模块提供了可渲染到终端的各种 UI 组件。
 
 ## 目录结构
 
@@ -58,12 +58,12 @@ let paragraph = StatefulParagraph::from(text);
 
 - 从本地文件读取图片
 - 支持 HTTP(S) URL，先显示占位文本，下载完成后自动回填
-- 按预览区宽度等比缩放，未指定尺寸时默认读取 `lc.config().image`
+- 按预览区宽度等比缩放，未指定尺寸时默认读取 `deck.config().image`
 - 优先使用终端原生图片协议（当前支持 Kitty / iTerm Inline）
 - 终端不支持原生协议时，使用 truecolor 半块字符（`▀` / `▄`）渲染
 - 若终端支持原生协议，但图片被滚动裁切，或当前有对话框导致 native render 被禁用，则保留布局占位但不渲染图片内容
 - 可和文本一起放进数组做图文混排
-- 终端协议编码结果会缓存在 `~/.cache/lazycmd/prepared-images/`，避免重复 decode/resize/encode
+- 终端协议编码结果会缓存在 `~/.cache/lazydeck/prepared-images/`，避免重复 decode/resize/encode
 
 ### ListWidget
 
@@ -133,29 +133,29 @@ span.underline() // 下划线
 
 ```lua
 -- 创建带样式的文本
-local span = lc.style.span("hello"):fg("green")
-local line = lc.style.line({span, " world"})
-local text = lc.style.text({line})
+local span = deck.style.span("hello"):fg("green")
+local line = deck.style.line({span, " world"})
+local text = deck.style.text({line})
 
 local emph = "repo":bold()
-local note = lc.style.span("important"):underline()
+local note = deck.style.span("important"):underline()
 
 -- 设置预览
-lc.api.set_preview(nil, text)
+deck.api.set_preview(nil, text)
 
 -- 给已有 Text 追加一行
-text:append(lc.style.line { "tail line" })
+text:append(deck.style.line { "tail line" })
 
 -- 给已有 Text 追加另一个 Text
-text:append(lc.style.highlight("# title", "markdown"))
+text:append(deck.style.highlight("# title", "markdown"))
 
 -- 字符串颜色扩展
 local colored = "hello".fg("blue")
-lc.api.set_preview(nil, colored)
+deck.api.set_preview(nil, colored)
 
 -- 字符串 ANSI 解析
 local ansi_text = "\x1b[31mred\x1b[0m":ansi()
-lc.api.set_preview(nil, ansi_text)
+deck.api.set_preview(nil, ansi_text)
 ```
 
 ## 输入状态管理
@@ -258,6 +258,6 @@ App::draw()
 
 - `src/app.rs` - 应用主窗口布局
 - `src/state.rs` - 应用状态管理
-- `src/plugin/lc/style.rs` - Rust 样式 API
+- `src/plugin/deck/style.rs` - Rust 样式 API
 - `preset/lua/style.lua` - Lua 样式封装
 - `preset/lua/string.lua` - 字符串方法扩展

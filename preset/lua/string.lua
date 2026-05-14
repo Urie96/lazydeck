@@ -2,33 +2,33 @@
 ---@param s string content
 ---@param color string Color name (e.g., "blue", "red", "green")
 ---@return Span A colored span widget
-function string.fg(s, color) return _lc.style.span(s):fg(color) end
+function string.fg(s, color) return _deck.style.span(s):fg(color) end
 
 ---Apply bold style for display
 ---@param s string content
 ---@return Span A bold span widget
-function string.bold(s) return _lc.style.span(s):bold() end
+function string.bold(s) return _deck.style.span(s):bold() end
 
 ---Apply italic style for display
 ---@param s string content
 ---@return Span An italic span widget
-function string.italic(s) return _lc.style.span(s):italic() end
+function string.italic(s) return _deck.style.span(s):italic() end
 
 ---Apply underline style for display
 ---@param s string content
 ---@return Span An underlined span widget
-function string.underline(s) return _lc.style.span(s):underline() end
+function string.underline(s) return _deck.style.span(s):underline() end
 
 ---Parse ANSI escape sequences into a TUI Text widget
 ---@param s string content
 ---@return Text A Text widget with parsed ANSI codes
-function string.ansi(s) return _lc.style.ansi(s) end
+function string.ansi(s) return _deck.style.ansi(s) end
 
 ---Split string by separator
 ---@param s string content
 ---@param sep string The separator
 ---@return string[] The split parts
-function string.split(s, sep) return _lc.split(s, sep) end
+function string.split(s, sep) return _deck.split(s, sep) end
 
 ---Trim leading and trailing whitespace from a string
 ---@param s string content

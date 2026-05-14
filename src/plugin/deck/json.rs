@@ -146,7 +146,7 @@ fn lua_to_json(lua: &Lua, value: LuaValue) -> mlua::Result<Value> {
     }
 }
 
-/// Create the lc.json table
+/// Create the deck.json table
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
     let decode_fn = lua.create_function(decode)?.into_lua(lua)?;
     let encode_fn = lua.create_function(encode)?.into_lua(lua)?;

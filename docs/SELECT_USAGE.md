@@ -1,6 +1,6 @@
-# lc.select() 使用说明
+# deck.select() 使用说明
 
-`lc.select()` 是一个弹出式选择对话框组件，类似于 Neovim 的 `vim.ui.select()`。
+`deck.select()` 是一个弹出式选择对话框组件，类似于 Neovim 的 `vim.ui.select()`。
 
 ## 功能特性
 
@@ -15,7 +15,7 @@
 ## API
 
 ```lua
-lc.select({
+deck.select({
   prompt = "选择提示文本",  -- 可选，默认为 "Select"
   options = {...},          -- 必需，选项列表
 }, function(choice)
@@ -28,7 +28,7 @@ end)
 ### 1. 简单字符串数组
 
 ```lua
-lc.select({
+deck.select({
   prompt = '请选择一个选项:',
   options = { '选项1', '选项2', '选项3' },
 }, function(choice)
@@ -45,7 +45,7 @@ end)
 ### 2. 带有 value 和 display 的表数组
 
 ```lua
-lc.select({
+deck.select({
   prompt = '选择一种编程语言:',
   options = {
     { value = "py", display = "🐍 Python" },
@@ -108,7 +108,7 @@ pub struct SelectDialog {
 
 ### 事件流程
 
-1. Lua 调用 `lc.select(opts)` 触发 `Event::ShowSelect`
+1. Lua 调用 `deck.select(opts)` 触发 `Event::ShowSelect`
 2. Rust 接收事件，创建 `SelectDialog` 并存储在 `State::select_dialog`
 3. `AppWidget::render()` 检测到 `select_dialog` 存在，渲染选择对话框
 4. 键盘事件由 `select_handler::handle_select_dialog_key()` 处理
@@ -151,5 +151,5 @@ cargo run -- select-test
 ---@field prompt? string Optional prompt/title text (defaults to "Select")
 ---@field options (string|SelectOption)[] The list of options to display
 ---@param on_selection fun(choice: any) Callback function when user makes a selection
-function lc.select(opts, on_selection) end
+function deck.select(opts, on_selection) end
 ```

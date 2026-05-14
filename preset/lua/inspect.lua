@@ -330,4 +330,4 @@ setmetatable(inspect, {
 ---@param root any The value to inspect (can be any Lua type)
 ---@param options? { depth?: number, newline?: string, indent?: string, process?: fun(value: any): any } Optional inspection options
 ---@return string Returns a human-readable string representation of the value
-function lc.inspect(root, options) return inspect.inspect(root, options) end
+function deck.inspect(root, options) return inspect.inspect(root, options) end

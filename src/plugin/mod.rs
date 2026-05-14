@@ -1,7 +1,7 @@
-mod lc;
+mod deck;
 mod lua;
 mod scope;
 
-pub(crate) use lc::flush_pending_cache;
+pub(crate) use deck::flush_pending_cache;
 pub use lua::*;
 pub use scope::*;

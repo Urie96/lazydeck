@@ -42,7 +42,7 @@ end
 
 local function add_config_base_path()
   local package = require 'package'
-  local base_dir = os.getenv 'HOME' .. '/.config/lazycmd'
+  local base_dir = os.getenv 'HOME' .. '/.config/lazydeck'
 
   local paths = { package.path }
   local seen = {}
@@ -56,7 +56,7 @@ local function add_plugin_paths(plugins)
   local paths = { package.path }
   local seen = {}
 
-  for _, p in ipairs(lc._pm.flatten_plugins(plugins or {})) do
+  for _, p in ipairs(deck._pm.flatten_plugins(plugins or {})) do
     if p.dir and not seen[p.dir] then
       append_package_path(paths, p.dir .. '/?.lua', seen)
       append_package_path(paths, p.dir .. '/?/init.lua', seen)
@@ -85,7 +85,7 @@ local function rebuild_plugin_index()
   runtime.configured_plugins = {}
 
   for _, plugin_spec in ipairs(cfg.plugins or {}) do
-    local spec = lc._pm.parse_plugin_spec(plugin_spec)
+    local spec = deck._pm.parse_plugin_spec(plugin_spec)
     if spec then
       table.insert(runtime.explicit_plugin_specs, spec)
       runtime.plugin_specs_by_name[spec.name] = spec
@@ -94,14 +94,14 @@ local function rebuild_plugin_index()
 end
 
 local function plugin_status(spec)
-  if spec.is_remote and not lc._pm.is_installed(spec) then return 'missing' end
+  if spec.is_remote and not deck._pm.is_installed(spec) then return 'missing' end
   return 'installed'
 end
 
 local function plugin_display(spec)
   local color = plugin_status(spec) == 'missing' and 'yellow' or 'white'
-  return lc.style.line {
-    lc.style.span(spec.name):fg(color),
+  return deck.style.line {
+    deck.style.span(spec.name):fg(color),
   }
 end
 
@@ -116,7 +116,7 @@ local function list_root_plugins(cb)
       is_remote = spec.is_remote,
       status = plugin_status(spec),
       display = plugin_display(spec),
-      preview = function(self, preview_cb) lc._manager.preview(self, preview_cb) end,
+      preview = function(self, preview_cb) deck._manager.preview(self, preview_cb) end,
     })
   end
   cb(entries)
@@ -152,22 +152,22 @@ end
 local function setup_plugin(name) return ensure_plugin(name) end
 
 local function guarded_preview_callback(hovered_path)
-  return function(preview) lc.api.set_preview(hovered_path, preview) end
+  return function(preview) deck.api.set_preview(hovered_path, preview) end
 end
 
 local function open_help()
   local options = {}
   local lines = {}
 
-  for _, item in ipairs(lc.api.get_available_keymaps()) do
+  for _, item in ipairs(deck.api.get_available_keymaps()) do
     local source = item.source == 'entry' and '[entry]' or '[global]'
     local desc = item.desc or 'no description'
-    local line = lc.style.line {
-      lc.style.span(item.key):fg 'yellow',
+    local line = deck.style.line {
+      deck.style.span(item.key):fg 'yellow',
       '  ',
-      lc.style.span(source):fg(item.source == 'entry' and 'cyan' or 'blue'),
+      deck.style.span(source):fg(item.source == 'entry' and 'cyan' or 'blue'),
       '  ',
-      lc.style.span(desc):fg 'white',
+      deck.style.span(desc):fg 'white',
     }
     table.insert(lines, line)
     table.insert(options, {
@@ -176,9 +176,9 @@ local function open_help()
     })
   end
 
-  lc.style.align_columns(lines)
+  deck.style.align_columns(lines)
 
-  lc.select({ prompt = 'Available Keymaps', options = options }, function(choice)
+  deck.select({ prompt = 'Available Keymaps', options = options }, function(choice)
     if choice and choice.callback then choice.callback() end
   end)
 end
@@ -187,12 +187,12 @@ local function select_action()
   local options = {}
   local lines = {}
 
-  for _, item in ipairs(lc.api.get_available_keymaps()) do
+  for _, item in ipairs(deck.api.get_available_keymaps()) do
     if item.source == 'entry' and item.desc ~= 'Select action' then
-      local line = lc.style.line {
-        lc.style.span(item.key):fg 'yellow',
+      local line = deck.style.line {
+        deck.style.span(item.key):fg 'yellow',
         '  ',
-        lc.style.span(item.desc or 'no description'):fg 'white',
+        deck.style.span(item.desc or 'no description'):fg 'white',
       }
       table.insert(lines, line)
       table.insert(options, {
@@ -203,40 +203,40 @@ local function select_action()
   end
 
   if #options == 0 then return end
-  lc.style.align_columns(lines)
-  lc.select({ prompt = 'Actions', options = options }, function(choice)
+  deck.style.align_columns(lines)
+  deck.select({ prompt = 'Actions', options = options }, function(choice)
     if choice and choice.callback then choice.callback() end
   end)
 end
 
 local function open_filter()
-  lc.input {
+  deck.input {
     prompt = 'Filter:',
     placeholder = '输入筛选内容...',
-    value = lc.api.get_filter(),
-    on_change = function(input) lc.api.set_filter(input) end,
-    on_submit = function(input) lc.api.set_filter(input) end,
-    on_cancel = function() lc.api.set_filter '' end,
+    value = deck.api.get_filter(),
+    on_change = function(input) deck.api.set_filter(input) end,
+    on_submit = function(input) deck.api.set_filter(input) end,
+    on_cancel = function() deck.api.set_filter '' end,
   }
 end
 
 local function edit_current_input_in_external_editor()
-  local current = lc.input.get()
+  local current = deck.input.get()
   if current == nil then return end
 
-  lc.system.edit({ content = current }, function(content, err)
+  deck.system.edit({ content = current }, function(content, err)
     if err then
-      lc.notify(err)
+      deck.notify(err)
     end
     if content ~= nil then
-      lc.input.set(content:gsub('\r?\n$', ''))
+      deck.input.set(content:gsub('\r?\n$', ''))
     end
   end)
 end
 
 local function apply_configured_keymap()
-  local map = function(key, cb, desc) lc.keymap.set('main', key, cb, { desc = desc }) end
-  local map_input = function(key, cb, desc) lc.keymap.set('input', key, cb, { desc = desc }) end
+  local map = function(key, cb, desc) deck.keymap.set('main', key, cb, { desc = desc }) end
+  local map_input = function(key, cb, desc) deck.keymap.set('input', key, cb, { desc = desc }) end
   map(cfg.keymap.up, 'scroll_by -1', 'move up')
   map(cfg.keymap.down, 'scroll_by 1', 'move down')
   map(cfg.keymap.top, 'scroll_by -9999', 'go to top')
@@ -249,12 +249,12 @@ local function apply_configured_keymap()
   map(cfg.keymap.force_quit, 'quit', 'force quit')
   map(cfg.keymap.command_prompt, 'command_prompt', 'command prompt')
   map(cfg.keymap.filter, open_filter, 'filter')
-  map(cfg.keymap.clear_filter, function() lc.api.set_filter '' end, 'clear filter')
+  map(cfg.keymap.clear_filter, function() deck.api.set_filter '' end, 'clear filter')
   map(cfg.keymap.back, 'back', 'back')
   map(cfg.keymap.open, 'enter', 'open')
   map(cfg.keymap.help, open_help, 'help')
   map(cfg.keymap.enter, select_action, 'Select action')
-  map('gr', function() lc.api.go_to {} end, 'go to /')
+  map('gr', function() deck.api.go_to {} end, 'go to /')
 
   map_input(cfg.keymap.input_submit, 'input_submit', 'submit input')
   map_input(cfg.keymap.input_cancel, 'input_cancel', 'cancel input')
@@ -269,39 +269,39 @@ local config = {}
 function config.get() return cfg end
 
 function config.setup(opt)
-  cfg = lc.tbl_deep_extend('force', cfg, opt or {})
+  cfg = deck.tbl_deep_extend('force', cfg, opt or {})
   rebuild_plugin_index()
   add_plugin_paths(cfg.plugins)
   apply_configured_keymap()
-  lc._manager.setup(cfg.plugins)
-  lc._pm.install_missing(cfg.plugins, function() lc.cmd 'reload' end)
+  deck._manager.setup(cfg.plugins)
+  deck._pm.install_missing(cfg.plugins, function() deck.cmd 'reload' end)
 
-  function lc._list()
-    local path = lc.api.get_current_path()
+  function deck._list()
+    local path = deck.api.get_current_path()
     if #path == 0 then
       list_root_plugins(function(entries)
-        if lc.deep_equal(path, lc.api.get_current_path()) then lc.api.set_entries(nil, entries) end
+        if deck.deep_equal(path, deck.api.get_current_path()) then deck.api.set_entries(nil, entries) end
       end)
       return
     end
 
     local plugin, err = ensure_plugin(path[1])
     if not plugin then
-      lc.notify(tostring(err))
-      lc.api.set_entries(nil, {})
+      deck.notify(tostring(err))
+      deck.api.set_entries(nil, {})
       return
     end
 
     if plugin.list then
       plugin.list(path, function(entries)
-        if lc.deep_equal(path, lc.api.get_current_path()) then lc.api.set_entries(nil, entries) end
+        if deck.deep_equal(path, deck.api.get_current_path()) then deck.api.set_entries(nil, entries) end
       end)
     end
   end
 
-  function lc._preview()
-    local entry = lc.api.get_hovered()
-    local path = lc.api.get_hovered_path()
+  function deck._preview()
+    local entry = deck.api.get_hovered()
+    local path = deck.api.get_hovered_path()
     if not entry then return end
 
     local cb = guarded_preview_callback(path)
@@ -311,7 +311,7 @@ function config.setup(opt)
       return
     end
 
-    local current_path = lc.api.get_current_path()
+    local current_path = deck.api.get_current_path()
     if #current_path == 0 then
       cb ''
       return
@@ -322,14 +322,14 @@ function config.setup(opt)
   end
 end
 
-lc.config = config
-lc.plugin = lc.plugin or {}
+deck.config = config
+deck.plugin = deck.plugin or {}
 
-function lc.plugin.load(name) return setup_plugin(name) end
+function deck.plugin.load(name) return setup_plugin(name) end
 
--- Set metatable on lc.system to handle multiple argument formats
-setmetatable(lc.config, {
-  __call = function(self, opt) lc.config.setup(opt) end,
+-- Set metatable on deck.system to handle multiple argument formats
+setmetatable(deck.config, {
+  __call = function(self, opt) deck.config.setup(opt) end,
 })
 
 require 'init'

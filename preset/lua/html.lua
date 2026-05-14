@@ -81,19 +81,19 @@ local function wrap_document(raw)
   return setmetatable({ _raw = raw }, { __index = HtmlDocument })
 end
 
----@class lc.html
+---@class deck.html
 local html = {}
 
 ---@param source string
 ---@return HtmlDocument
 function html.parse(source)
-  return wrap_document(_lc.html.parse(source))
+  return wrap_document(_deck.html.parse(source))
 end
 
 ---@param source string
 ---@return HtmlDocument
 function html.parse_fragment(source)
-  return wrap_document(_lc.html.parse_fragment(source))
+  return wrap_document(_deck.html.parse_fragment(source))
 end
 
-lc.html = html
+deck.html = html

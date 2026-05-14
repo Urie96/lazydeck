@@ -32,9 +32,9 @@ use tokio::time::sleep;
 /// Get the log file path for Lua plugin logs
 fn get_log_path() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".local/state/lazycmd/lua.log")
+        PathBuf::from(home).join(".local/state/lazydeck/lua.log")
     } else {
-        PathBuf::from("/tmp/lazycmd.log")
+        PathBuf::from("/tmp/lazydeck.log")
     }
 }
 
@@ -178,7 +178,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         })?
         .into_lua(lua)?;
 
-    // lc.confirm: show a confirmation dialog
+    // deck.confirm: show a confirmation dialog
     let confirm_fn = lua.create_function(|lua, opts: LuaTable| -> mlua::Result<()> {
         // title is optional, defaults to "Confirm"
         let title: Option<String> = opts.get("title").ok();
@@ -198,7 +198,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         Ok(())
     })?;
 
-    // lc.select: show a selection dialog
+    // deck.select: show a selection dialog
     let select_fn = lua.create_function(
         |lua, (opts, on_selection): (LuaTable, LuaFunction)| -> mlua::Result<()> {
             // Parse options: can be an array of strings or an array of tables
@@ -363,7 +363,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         })?,
     )?;
 
-    let lc = lua.create_table_from([
+    let deck = lua.create_table_from([
         ("defer_fn", defer_fn),
         ("keymap", keymap),
         ("api", api),
@@ -392,6 +392,6 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         ("input", mlua::Value::Table(input_tbl)),
         ("style", mlua::Value::Table(style_tbl)),
     ])?;
-    lua.globals().raw_set("lc", lua.create_table()?)?;
-    lua.globals().raw_set("_lc", lc)
+    lua.globals().raw_set("deck", lua.create_table()?)?;
+    lua.globals().raw_set("_deck", deck)
 }

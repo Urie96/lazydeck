@@ -9,7 +9,7 @@ pub type Term = Terminal<CrosstermBackend<Stdout>>;
 pub fn init() -> Result<Term> {
     // Check if stdout is a TTY
     if !stdout().is_tty() {
-        bail!("lazycmd requires a terminal (TTY) to run. Make sure you're not piping output or running in a non-interactive environment.");
+        bail!("lazydeck requires a terminal (TTY) to run. Make sure you're not piping output or running in a non-interactive environment.");
     }
 
     enable_raw_mode()?;
