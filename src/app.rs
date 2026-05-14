@@ -178,6 +178,17 @@ impl App {
         Ok(())
     }
 
+    fn navigate_to(&mut self, path: Vec<String>, record_history: bool) -> Result<()> {
+        let from_cache = self.state.go_to(path, record_history);
+        if from_cache {
+            self.refresh_preview()?;
+        }
+        self.call_list()?;
+        self.run_post_page_enter_hooks()?;
+        self.dirty = true;
+        Ok(())
+    }
+
     fn run_post_page_enter_hooks(&mut self) -> Result<()> {
         let current_path = self.state.current_path.clone();
         let payload = plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
@@ -270,15 +281,7 @@ impl App {
             Event::Crossterm(_) => {}
             Event::Command(command) => self.handle_command(command.as_str())?,
             Event::AddKeymap(keymap) => self.state.add_keymap(keymap),
-            Event::Enter(path) => {
-                let from_cache = self.state.go_to(path, true);
-                if from_cache {
-                    self.refresh_preview()?;
-                }
-                self.call_list()?;
-                self.run_post_page_enter_hooks()?;
-                self.dirty = true;
-            }
+            Event::Enter(path) => self.navigate_to(path, true)?,
             Event::LuaCallback(cb) => {
                 plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
                     cb(&self.lua)?;
@@ -560,14 +563,7 @@ impl App {
             "cd" => {
                 let raw_path = it.cloned().collect::<Vec<_>>().join(" ");
                 let path = Self::resolve_command_path(&self.state.current_path, &raw_path)?;
-                let from_cache = self.state.go_to(path, true);
-                if !from_cache {
-                    self.call_list()?;
-                } else {
-                    self.refresh_preview()?;
-                }
-                self.run_post_page_enter_hooks()?;
-                self.dirty = true;
+                self.navigate_to(path, true)?;
             }
             "command_prompt" => {
                 let initial_value = it.cloned().collect::<Vec<_>>().join(" ");
@@ -577,39 +573,19 @@ impl App {
                 if let Some(hovered) = self.state.hovered() {
                     let mut path = self.state.current_path.clone();
                     path.push(hovered.key.clone());
-                    let from_cache = self.state.go_to(path, true);
-                    if !from_cache {
-                        self.call_list()?;
-                    } else {
-                        self.refresh_preview()?;
-                    }
-                    self.run_post_page_enter_hooks()?;
-                    self.dirty = true;
+                    self.navigate_to(path, true)?;
                 }
             }
             "back" => {
                 let mut path = self.state.current_path.clone();
                 if !path.is_empty() {
                     path.pop();
-                    let from_cache = self.state.go_to(path, true);
-                    if !from_cache {
-                        self.call_list()?;
-                    } else {
-                        self.refresh_preview()?;
-                    }
-                    self.run_post_page_enter_hooks()?;
-                    self.dirty = true;
+                    self.navigate_to(path, true)?;
                 }
             }
             "history_back" => {
-                if let Some((_, from_cache)) = self.state.go_back_in_history() {
-                    if !from_cache {
-                        self.call_list()?;
-                    } else {
-                        self.refresh_preview()?;
-                    }
-                    self.run_post_page_enter_hooks()?;
-                    self.dirty = true;
+                if let Some(path) = self.state.pop_history_path() {
+                    self.navigate_to(path, false)?;
                 }
             }
             "input_submit" => {

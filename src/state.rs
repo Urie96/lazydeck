@@ -813,7 +813,7 @@ mod tests {
     }
 
     #[test]
-    fn go_to_records_history_and_history_back_restores_previous_page() {
+    fn go_to_records_history_and_pop_history_returns_previous_path() {
         let lua = Lua::new();
         let mut state = State::new();
 
@@ -823,16 +823,15 @@ mod tests {
         state.set_current_page_entries(vec![make_entry_with_key(&lua, "search")]);
         assert!(!state.go_to(vec!["github".to_string(), "search".to_string()], true));
 
-        let Some((path, from_cache)) = state.go_back_in_history() else {
+        let Some(path) = state.pop_history_path() else {
             panic!("expected history entry");
         };
         assert_eq!(path, vec!["github".to_string()]);
-        assert!(from_cache);
-        assert_eq!(state.current_path, vec!["github".to_string()]);
+        assert_eq!(state.current_path, vec!["github".to_string(), "search".to_string()]);
     }
 
     #[test]
-    fn go_back_in_history_skips_current_page_duplicates() {
+    fn pop_history_path_skips_current_page_duplicates() {
         let lua = Lua::new();
         let mut state = State::new();
 
@@ -841,11 +840,11 @@ mod tests {
         state.set_current_page_entries(vec![make_entry_with_key(&lua, "search")]);
 
         assert!(state.go_to(vec!["github".to_string()], true));
-        let Some((path, _)) = state.go_back_in_history() else {
+        let Some(path) = state.pop_history_path() else {
             panic!("expected history entry");
         };
         assert_eq!(path, Vec::<String>::new());
-        assert_eq!(state.current_path, Vec::<String>::new());
+        assert_eq!(state.current_path, vec!["github".to_string()]);
     }
 
     #[test]
@@ -858,8 +857,8 @@ mod tests {
         state.set_current_page_entries(vec![make_entry_with_key(&lua, "search")]);
 
         assert!(state.go_to(vec!["github".to_string()], true));
-        assert!(state.go_back_in_history().is_some());
-        assert!(state.go_back_in_history().is_none());
+        assert!(state.pop_history_path().is_some());
+        assert!(state.pop_history_path().is_none());
     }
 
     #[test]
@@ -1316,13 +1315,12 @@ impl State {
         }
     }
 
-    pub fn go_back_in_history(&mut self) -> Option<(Vec<String>, bool)> {
+    pub fn pop_history_path(&mut self) -> Option<Vec<String>> {
         self.clear_key_buffer();
 
         while let Some(path) = self.navigation_history.pop() {
             if path != self.current_path {
-                let from_cache = self.go_to(path.clone(), false);
-                return Some((path, from_cache));
+                return Some(path);
             }
         }
 
