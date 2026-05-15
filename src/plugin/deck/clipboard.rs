@@ -1,4 +1,6 @@
 use mlua::prelude::*;
+
+#[cfg(target_os = "android")]
 use std::process::Command;
 
 #[cfg(target_os = "android")]
