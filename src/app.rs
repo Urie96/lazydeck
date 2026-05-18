@@ -588,6 +588,11 @@ impl App {
                     self.navigate_to(path, false)?;
                 }
             }
+            "history_forward" => {
+                if let Some(path) = self.state.pop_forward_history_path() {
+                    self.navigate_to(path, false)?;
+                }
+            }
             "input_submit" => {
                 if let Some((text, on_submit)) = self.state.input_dialog_submit() {
                     plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {

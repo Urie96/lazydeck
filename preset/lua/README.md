@@ -220,6 +220,7 @@ deck.url.decode("hello%20world") -- "hello world"
   preview_down = '<pagedown>',
   reload = '<C-r>',
   history_back = '<C-o>',
+  history_forward = '<C-i>',
   quit = 'q',
   command_prompt = ':',
   force_quit = '<C-q>',
@@ -243,6 +244,7 @@ deck.url.decode("hello%20world") -- "hello world"
 | `<PageDown>` | 预览向下滚动 |
 | `Ctrl+r` | 刷新 |
 | `Ctrl+o` | 跳回上一个访问页面 |
+| `Ctrl+i` | 跳到下一个历史页面 |
 | `:` | 打开命令输入框 |
 | `q` | 退出 |
 | `/` | 进入过滤模式 |
@@ -335,7 +337,7 @@ deck.config {
 
 其中 `Backspace`、`Left`、`Right` 是 Rust 内置输入键位，不通过 `deck.config.keymap` 配置。默认 `input_external_editor` 为 `<C-g>`，由 `preset/lua/config.lua` 注册为 Lua keymap，通过 `deck.system.edit(...)` 调用外部编辑器编辑当前输入内容，优先使用 `$VISUAL`，其次 `$EDITOR`，否则回退到 `vi`。
 
-支持的字段有：`up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`history_back`、`quit`、`force_quit`、`command_prompt`、`filter`、`clear_filter`、`back`、`open`、`enter`、`input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会根据当前 `keymap` 重新调用一遍 `deck.keymap.set`。
+支持的字段有：`up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`history_back`、`history_forward`、`quit`、`force_quit`、`command_prompt`、`filter`、`clear_filter`、`back`、`open`、`enter`、`input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会根据当前 `keymap` 重新调用一遍 `deck.keymap.set`。
 
 通过 `:` 打开的命令输入框可以执行内部命令，例如：
 

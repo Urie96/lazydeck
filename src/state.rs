@@ -862,6 +862,47 @@ mod tests {
     }
 
     #[test]
+    fn history_forward_returns_to_page_after_history_back() {
+        let lua = Lua::new();
+        let mut state = State::new();
+
+        state.set_current_page_entries(vec![make_entry_with_key(&lua, "github")]);
+        assert!(!state.go_to(vec!["github".to_string()], true));
+        state.set_current_page_entries(vec![make_entry_with_key(&lua, "search")]);
+        assert!(!state.go_to(vec!["github".to_string(), "search".to_string()], true));
+
+        let back_path = state.pop_history_path().expect("expected back history");
+        assert_eq!(back_path, vec!["github".to_string()]);
+        assert!(state.go_to(back_path, false));
+
+        let forward_path = state
+            .pop_forward_history_path()
+            .expect("expected forward history");
+        assert_eq!(
+            forward_path,
+            vec!["github".to_string(), "search".to_string()]
+        );
+    }
+
+    #[test]
+    fn normal_navigation_clears_forward_history() {
+        let lua = Lua::new();
+        let mut state = State::new();
+
+        state.set_current_page_entries(vec![make_entry_with_key(&lua, "github")]);
+        assert!(!state.go_to(vec!["github".to_string()], true));
+        state.set_current_page_entries(vec![make_entry_with_key(&lua, "search")]);
+        assert!(!state.go_to(vec!["github".to_string(), "search".to_string()], true));
+
+        let back_path = state.pop_history_path().expect("expected back history");
+        assert!(state.go_to(back_path, false));
+        state.set_current_page_entries(vec![make_entry_with_key(&lua, "issues")]);
+        assert!(!state.go_to(vec!["github".to_string(), "issues".to_string()], true));
+
+        assert!(state.pop_forward_history_path().is_none());
+    }
+
+    #[test]
     fn cached_preview_is_restored_when_hover_returns_to_entry() {
         let lua = Lua::new();
         let mut state = State::new();
@@ -977,6 +1018,8 @@ pub struct State {
     preview_cache: HashMap<Vec<String>, Box<dyn Renderable>>,
     /// Navigation history for jumping back to the previously visited page
     navigation_history: Vec<Vec<String>>,
+    /// Navigation history for jumping forward after jumping back
+    navigation_forward_history: Vec<Vec<String>>,
     /// Hooks to call before reload command
     pub pre_reload_hooks: Vec<LuaFunction>,
     /// Hooks to call before quit command
@@ -1295,6 +1338,7 @@ impl State {
 
         if record_history && self.current_page.is_some() {
             self.navigation_history.push(self.current_path.clone());
+            self.navigation_forward_history.clear();
         }
 
         // Cache current page before navigating away
@@ -1320,6 +1364,20 @@ impl State {
 
         while let Some(path) = self.navigation_history.pop() {
             if path != self.current_path {
+                self.navigation_forward_history.push(self.current_path.clone());
+                return Some(path);
+            }
+        }
+
+        None
+    }
+
+    pub fn pop_forward_history_path(&mut self) -> Option<Vec<String>> {
+        self.clear_key_buffer();
+
+        while let Some(path) = self.navigation_forward_history.pop() {
+            if path != self.current_path {
+                self.navigation_history.push(self.current_path.clone());
                 return Some(path);
             }
         }

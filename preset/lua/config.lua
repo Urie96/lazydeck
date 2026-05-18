@@ -8,6 +8,7 @@ local cfg = {
     preview_down = '<pagedown>',
     reload = '<C-r>',
     history_back = '<C-o>',
+    history_forward = '<C-i>',
     quit = 'q',
     force_quit = '<C-q>',
     filter = '/',
@@ -225,12 +226,8 @@ local function edit_current_input_in_external_editor()
   if current == nil then return end
 
   deck.system.edit({ content = current }, function(content, err)
-    if err then
-      deck.notify(err)
-    end
-    if content ~= nil then
-      deck.input.set(content:gsub('\r?\n$', ''))
-    end
+    if err then deck.notify(err) end
+    if content ~= nil then deck.input.set(content:gsub('\r?\n$', '')) end
   end)
 end
 
@@ -245,6 +242,7 @@ local function apply_configured_keymap()
   map(cfg.keymap.preview_down, 'scroll_preview_by 30', 'scroll preview down')
   map(cfg.keymap.reload, 'reload', 'reload')
   map(cfg.keymap.history_back, 'history_back', 'history back')
+  map(cfg.keymap.history_forward, 'history_forward', 'history forward')
   map(cfg.keymap.quit, 'quit', 'quit')
   map(cfg.keymap.force_quit, 'quit', 'force quit')
   map(cfg.keymap.command_prompt, 'command_prompt', 'command prompt')

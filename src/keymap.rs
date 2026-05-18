@@ -94,6 +94,11 @@ fn parse_angle_bracket_notation(inner: &str) -> KeySequence {
         "f10" => KeyCode::F(10),
         "f11" => KeyCode::F(11),
         "f12" => KeyCode::F(12),
+        // Treat Ctrl+I as Tab for terminal compatibility
+        c if modifiers.contains(KeyModifiers::CONTROL) && c.eq_ignore_ascii_case("i") => {
+            modifiers.remove(KeyModifiers::CONTROL);
+            KeyCode::Tab
+        }
         // Treat remaining as single character
         c => {
             let char = c.chars().next().unwrap_or(' ');
@@ -166,6 +171,14 @@ mod tests {
         assert_eq!(keyseq.0.len(), 1);
         assert!(keyseq.0[0].modifiers.contains(KeyModifiers::CONTROL));
         assert_eq!(keyseq.0[0].code, KeyCode::Char('c'));
+    }
+
+    #[test]
+    fn test_ctrl_i_maps_to_tab() {
+        let keyseq = KeySequence::from("<C-i>");
+        assert_eq!(keyseq.0.len(), 1);
+        assert_eq!(keyseq.0[0].code, KeyCode::Tab);
+        assert_eq!(keyseq.0[0].modifiers, KeyModifiers::empty());
     }
 
     #[test]

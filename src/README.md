@@ -237,6 +237,7 @@ Event::LuaCallback(Box::new(move |lua| {
 | `scroll_preview_by [n]` | 滚动预览 n 行 |
 | `reload`                | 刷新当前列表  |
 | `history_back`          | 跳回上一个访问页面 |
+| `history_forward`       | 跳到下一个历史页面 |
 | `command_prompt`        | 打开命令输入框并执行输入的内部命令 |
 | `cd <path>`             | 跳转到指定页面路径，支持绝对/相对路径 |
 | `enter_filter_mode`     | 进入过滤模式  |
