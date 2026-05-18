@@ -7,6 +7,11 @@ local keymap = {}
 ---@field desc? string Human readable description for help panels
 ---@field once? boolean Remove this global keymap after it is triggered once
 
+---@class PluginKeySpec
+---@field [1] string Key sequence
+---@field [2] fun() Callback to run after the plugin has been loaded
+---@field desc? string Human readable description for help panels
+
 ---@class deck.ConfigKeymap
 ---@field up? string
 ---@field down? string

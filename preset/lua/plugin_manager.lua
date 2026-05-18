@@ -97,12 +97,13 @@ function pm.parse_plugin_spec(spec)
     name = source
   end
 
-  local branch, tag, commit, config_fn
+  local branch, tag, commit, config_fn, keys
   if type(spec) == 'table' then
     branch = spec.branch
     tag = spec.tag
     commit = spec.commit
     config_fn = spec.config
+    keys = spec.keys
     if spec.dependencies ~= nil then
       error("plugin spec no longer supports 'dependencies'; list all plugins directly in deck.config.plugins")
     end
@@ -123,6 +124,7 @@ function pm.parse_plugin_spec(spec)
     tag = tag,
     commit = commit,
     config = config_fn,
+    keys = keys,
   }
 
   if dir then

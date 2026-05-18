@@ -168,6 +168,7 @@ lazydeck 自带多个示例插件：
 | `systemd`  | systemd 服务管理 |
 | `docker`   | Docker 容器管理  |
 | `aria2`    | aria2 下载管理   |
+| `rclone`   | rclone 远程管理  |
 
 ## 键盘快捷键
 
@@ -217,6 +218,15 @@ deck.config {
       config = function()
         require('myplugin').setup { option = value }
       end,
+      keys = {
+        { 'x', function() require('myplugin').action() end, desc = 'run my action' },
+      },
+    },
+    {
+      'plugins/bookmarks.lazydeck',
+      keys = {
+        { 'ma', function() require('bookmarks').add() end, desc = 'add current page to bookmarks' },
+      },
     },
 
     -- 本地目录插件：必须显式使用 dir
@@ -264,6 +274,8 @@ deck.config {
 ```
 
 `keymap` 用于覆盖内置主模式快捷键。支持的字段有 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`。每次调用 `deck.config` 都会按当前 `keymap` 配置重新执行一遍 `deck.keymap.set(...)`。
+
+插件 spec 可配置 `keys` 字段注册全局快捷键。`keys` 是数组，元素格式为 `{ key, callback, desc = ... }`；按下快捷键时会先执行对应插件的 `setup/config`（即懒加载插件），再调用 `callback`。
 
 **语法说明**：
 

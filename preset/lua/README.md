@@ -339,6 +339,23 @@ deck.config {
 
 支持的字段有：`up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`history_back`、`history_forward`、`quit`、`force_quit`、`command_prompt`、`filter`、`clear_filter`、`back`、`open`、`enter`、`input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会根据当前 `keymap` 重新调用一遍 `deck.keymap.set`。
 
+插件 spec 支持 `keys` 字段注册懒加载全局快捷键：
+
+```lua
+deck.config {
+  plugins = {
+    {
+      'plugins/bookmarks.lazydeck',
+      keys = {
+        { 'ma', function() require('bookmarks').add() end, desc = 'add current page to bookmarks' },
+      },
+    },
+  },
+}
+```
+
+`keys` 是数组，元素格式为 `{ key, callback, desc = ... }`。按下对应按键时，lazydeck 会先加载该插件并执行其 `config/setup`，然后调用配置的函数。
+
 通过 `:` 打开的命令输入框可以执行内部命令，例如：
 
 ```lua

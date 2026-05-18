@@ -324,6 +324,19 @@ deck.config {
 
 支持的键位名包括 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`history_back`、`history_forward`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`，以及 `input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会按这些配置重新执行一遍 `deck.keymap.set`。
 
+插件 spec 也可以定义全局 `keys`：
+
+```lua
+{
+  'owner/myplugin.lazydeck',
+  keys = {
+    { 'x', function() run_my_action() end, desc = 'run action' },
+  },
+}
+```
+
+按下配置的按键时，会先懒加载对应插件并执行其 `config/setup`，然后再调用回调。
+
 页面 entry 也可以定义局部 keymap：
 
 ```lua

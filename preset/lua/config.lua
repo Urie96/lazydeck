@@ -262,6 +262,42 @@ local function apply_configured_keymap()
   map_input(cfg.keymap.input_external_editor, edit_current_input_in_external_editor, 'edit input in external editor')
 end
 
+local function register_plugin_keymaps()
+  for _, spec in ipairs(runtime.explicit_plugin_specs or {}) do
+    local keys = spec.keys
+    if type(keys) == 'table' then
+      for _, item in ipairs(keys) do
+        if type(item) == 'table' then
+          local key = item[1]
+          local callback = item[2]
+          local desc = item.desc
+
+          if type(key) == 'string' and type(callback) == 'function' then
+            local plugin_name = spec.name
+            local key_name = key
+            local action_callback = callback
+            local action_desc = desc
+            deck.keymap.set('main', key_name, function()
+              local plugin, err = deck.plugin.load(plugin_name)
+              if not plugin then
+                deck.notify(err)
+                return
+              end
+
+              local ok, call_err = pcall(action_callback)
+              if not ok then
+                deck.notify(call_err)
+              end
+            end, {
+              desc = action_desc or (plugin_name .. ' · ' .. key_name),
+            })
+          end
+        end
+      end
+    end
+  end
+end
+
 local config = {}
 
 function config.get() return cfg end
@@ -271,6 +307,7 @@ function config.setup(opt)
   rebuild_plugin_index()
   add_plugin_paths(cfg.plugins)
   apply_configured_keymap()
+  register_plugin_keymaps()
   deck._manager.setup(cfg.plugins)
   deck._pm.install_missing(cfg.plugins, function() deck.cmd 'reload' end)
 
