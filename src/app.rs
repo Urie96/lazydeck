@@ -459,7 +459,6 @@ impl App {
         Ok(path)
     }
 
-
     fn open_command_prompt(&mut self, initial_value: String) -> Result<()> {
         let sender = self.event_sender.clone();
         let on_submit = self
@@ -761,7 +760,9 @@ impl StatefulWidget for AppWidget {
                 break;
             }
             let y = bottom.saturating_sub(notification_height);
-            let x = area.width.saturating_sub(notification_width + right_padding);
+            let x = area
+                .width
+                .saturating_sub(notification_width + right_padding);
             let notification_area = Rect {
                 x,
                 y,

@@ -44,7 +44,9 @@ mod state;
 mod term;
 mod widgets;
 
-fn parse_initial_path(args: impl IntoIterator<Item = OsString>) -> anyhow::Result<Option<Vec<String>>> {
+fn parse_initial_path(
+    args: impl IntoIterator<Item = OsString>,
+) -> anyhow::Result<Option<Vec<String>>> {
     let mut args = args.into_iter();
     let _program = args.next();
 
@@ -65,7 +67,9 @@ fn parse_initial_path(args: impl IntoIterator<Item = OsString>) -> anyhow::Resul
                 return Ok(None);
             }
             _ if arg.starts_with('-') => {
-                anyhow::bail!("Unknown option: {arg}\nTry '{APP_NAME} --help' for more information.");
+                anyhow::bail!(
+                    "Unknown option: {arg}\nTry '{APP_NAME} --help' for more information."
+                );
             }
             _ => {
                 if initial_path.is_some() {
@@ -194,8 +198,14 @@ mod tests {
 
     #[test]
     fn parse_initial_path_supports_help_flag() {
-        assert_eq!(parse_initial_path(os_args(&["lazydeck", "--help"])).unwrap(), None);
-        assert_eq!(parse_initial_path(os_args(&["lazydeck", "-h"])).unwrap(), None);
+        assert_eq!(
+            parse_initial_path(os_args(&["lazydeck", "--help"])).unwrap(),
+            None
+        );
+        assert_eq!(
+            parse_initial_path(os_args(&["lazydeck", "-h"])).unwrap(),
+            None
+        );
     }
 
     #[test]
@@ -204,7 +214,10 @@ mod tests {
             parse_initial_path(os_args(&["lazydeck", "--version"])).unwrap(),
             None
         );
-        assert_eq!(parse_initial_path(os_args(&["lazydeck", "-V"])).unwrap(), None);
+        assert_eq!(
+            parse_initial_path(os_args(&["lazydeck", "-V"])).unwrap(),
+            None
+        );
     }
 
     #[test]

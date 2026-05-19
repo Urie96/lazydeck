@@ -343,16 +343,22 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
     input_tbl.set(
         "set",
         lua.create_function(|lua, value: String| -> mlua::Result<()> {
-            let result: Option<(String, LuaFunction, bool)> = plugin::mut_scope_state(lua, |state| {
-                Ok(state.input_dialog_replace_text(value))
-            })?;
+            let result: Option<(String, LuaFunction, bool)> =
+                plugin::mut_scope_state(lua, |state| Ok(state.input_dialog_replace_text(value)))?;
             match result {
                 Some((text, on_change, changed)) => {
                     if changed {
                         let sender = plugin::clone_sender(lua)?;
                         sender
-                            .send(Event::LuaCallback(Box::new(move |_lua| on_change.call::<()>(text))))
-                            .map_err(|e| LuaError::RuntimeError(format!("Failed to schedule input.set callback: {}", e)))?;
+                            .send(Event::LuaCallback(Box::new(move |_lua| {
+                                on_change.call::<()>(text)
+                            })))
+                            .map_err(|e| {
+                                LuaError::RuntimeError(format!(
+                                    "Failed to schedule input.set callback: {}",
+                                    e
+                                ))
+                            })?;
                     }
                     Ok(())
                 }

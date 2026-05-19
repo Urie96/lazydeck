@@ -827,7 +827,10 @@ mod tests {
             panic!("expected history entry");
         };
         assert_eq!(path, vec!["github".to_string()]);
-        assert_eq!(state.current_path, vec!["github".to_string(), "search".to_string()]);
+        assert_eq!(
+            state.current_path,
+            vec!["github".to_string(), "search".to_string()]
+        );
     }
 
     #[test]
@@ -1364,7 +1367,8 @@ impl State {
 
         while let Some(path) = self.navigation_history.pop() {
             if path != self.current_path {
-                self.navigation_forward_history.push(self.current_path.clone());
+                self.navigation_forward_history
+                    .push(self.current_path.clone());
                 return Some(path);
             }
         }
