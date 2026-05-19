@@ -9,6 +9,10 @@ local cfg = {
     reload = '<C-r>',
     history_back = '<C-o>',
     history_forward = '<C-i>',
+    tab_new = 'tn',
+    tab_close = 'tc',
+    tab_next = 'gt',
+    tab_prev = 'gT',
     quit = 'q',
     force_quit = '<C-q>',
     filter = '/',
@@ -243,6 +247,10 @@ local function apply_configured_keymap()
   map(cfg.keymap.reload, 'reload', 'reload')
   map(cfg.keymap.history_back, 'history_back', 'history back')
   map(cfg.keymap.history_forward, 'history_forward', 'history forward')
+  map(cfg.keymap.tab_new, 'tab_new', 'new tab')
+  map(cfg.keymap.tab_close, 'tab_close', 'close tab')
+  map(cfg.keymap.tab_next, 'tab_next', 'next tab')
+  map(cfg.keymap.tab_prev, 'tab_prev', 'previous tab')
   map(cfg.keymap.quit, 'quit', 'quit')
   map(cfg.keymap.force_quit, 'quit', 'force quit')
   map(cfg.keymap.command_prompt, 'command_prompt', 'command prompt')

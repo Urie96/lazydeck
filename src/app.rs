@@ -189,6 +189,16 @@ impl App {
         Ok(())
     }
 
+    fn refresh_active_tab(&mut self) -> Result<()> {
+        if self.state.current_page.is_some() {
+            self.refresh_preview()?;
+        }
+        self.call_list()?;
+        self.run_post_page_enter_hooks()?;
+        self.dirty = true;
+        Ok(())
+    }
+
     fn run_post_page_enter_hooks(&mut self) -> Result<()> {
         let current_path = self.state.current_path.clone();
         let payload = plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
@@ -590,6 +600,48 @@ impl App {
             "history_forward" => {
                 if let Some(path) = self.state.pop_forward_history_path() {
                     self.navigate_to(path, false)?;
+                }
+            }
+            "tab_new" => {
+                let raw_path = it.cloned().collect::<Vec<_>>().join(" ");
+                let path = if raw_path.is_empty() {
+                    self.state.current_path.clone()
+                } else {
+                    Self::resolve_command_path(&self.state.current_path, &raw_path)?
+                };
+                self.state.new_tab(path);
+                self.refresh_active_tab()?;
+            }
+            "tab_close" => {
+                if self.state.close_current_tab() {
+                    self.refresh_active_tab()?;
+                } else {
+                    self.state
+                        .push_notification(Text::from("Cannot close the last tab"));
+                    self.dirty = true;
+                }
+            }
+            "tab_next" => {
+                if self.state.next_tab() {
+                    self.refresh_active_tab()?;
+                }
+            }
+            "tab_prev" => {
+                if self.state.prev_tab() {
+                    self.refresh_active_tab()?;
+                }
+            }
+            "tab_switch" => {
+                let index = it
+                    .next()
+                    .context("tab_switch requires a 1-based tab index")?
+                    .parse::<usize>()
+                    .context("wrong format for tab_switch")?;
+                if index == 0 {
+                    bail!("tab_switch index starts from 1");
+                }
+                if self.state.switch_tab(index - 1) {
+                    self.refresh_active_tab()?;
                 }
             }
             "input_submit" => {

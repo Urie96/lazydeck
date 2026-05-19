@@ -1005,8 +1005,28 @@ pub struct NotificationItem {
 }
 
 #[derive(Default)]
+pub struct TabSnapshot {
+    pub id: u64,
+    pub title: Option<String>,
+    pub current_path: Vec<String>,
+    pub current_page: Option<Page>,
+    pub current_preview: Option<Box<dyn Renderable>>,
+    current_preview_path: Option<Vec<String>>,
+    /// Cache for pages to preserve cursor position, entries and filter when navigating back
+    page_cache: HashMap<Vec<String>, Page>,
+    preview_cache: HashMap<Vec<String>, Box<dyn Renderable>>,
+    /// Navigation history for jumping back to the previously visited page
+    navigation_history: Vec<Vec<String>>,
+    /// Navigation history for jumping forward after jumping back
+    navigation_forward_history: Vec<Vec<String>>,
+}
+
+#[derive(Default)]
 pub struct State {
     pub current_mode: Mode,
+    tabs: Vec<TabSnapshot>,
+    active_tab: usize,
+    next_tab_id: u64,
     pub current_path: Vec<String>,
     pub current_page: Option<Page>,
     pub keymap_config: Vec<Keymap>,
@@ -1042,16 +1062,150 @@ pub struct State {
 impl State {
     /// Create a new State with default values
     pub fn new() -> Self {
-        Self {
+        let mut state = Self {
             scrolloff: 5, // Keep 5 lines between cursor and edge
+            next_tab_id: 1,
             ..Default::default()
-        }
+        };
+        state.tabs.push(TabSnapshot {
+            id: 0,
+            ..Default::default()
+        });
+        state
     }
 }
 
 impl State {
     fn clear_key_buffer(&mut self) {
         self.last_key_event_buffer.clear();
+    }
+
+    fn save_current_tab(&mut self) {
+        if self.tabs.is_empty() {
+            return;
+        }
+        self.stash_current_preview();
+        let tab = &mut self.tabs[self.active_tab];
+        tab.title = self
+            .current_path
+            .first()
+            .cloned()
+            .or_else(|| Some("/".to_string()));
+        tab.current_path = self.current_path.clone();
+        tab.current_page = self.current_page.take();
+        tab.current_preview = self.current_preview.take();
+        tab.current_preview_path = self.current_preview_path.take();
+        tab.page_cache = std::mem::take(&mut self.page_cache);
+        tab.preview_cache = std::mem::take(&mut self.preview_cache);
+        tab.navigation_history = std::mem::take(&mut self.navigation_history);
+        tab.navigation_forward_history = std::mem::take(&mut self.navigation_forward_history);
+    }
+
+    fn load_current_tab(&mut self) {
+        let tab = &mut self.tabs[self.active_tab];
+        self.current_path = tab.current_path.clone();
+        self.current_page = tab.current_page.take();
+        self.current_preview = tab.current_preview.take();
+        self.current_preview_path = tab.current_preview_path.take();
+        self.page_cache = std::mem::take(&mut tab.page_cache);
+        self.preview_cache = std::mem::take(&mut tab.preview_cache);
+        self.navigation_history = std::mem::take(&mut tab.navigation_history);
+        self.navigation_forward_history = std::mem::take(&mut tab.navigation_forward_history);
+    }
+
+    pub fn tab_count(&self) -> usize {
+        self.tabs.len()
+    }
+
+    pub fn active_tab_index(&self) -> usize {
+        self.active_tab
+    }
+
+    pub fn tab_infos(&self) -> Vec<(u64, Option<String>, Vec<String>)> {
+        self.tabs
+            .iter()
+            .enumerate()
+            .map(|(idx, tab)| {
+                if idx == self.active_tab {
+                    (
+                        tab.id,
+                        self.current_path
+                            .first()
+                            .cloned()
+                            .or_else(|| Some("/".to_string())),
+                        self.current_path.clone(),
+                    )
+                } else {
+                    (tab.id, tab.title.clone(), tab.current_path.clone())
+                }
+            })
+            .collect()
+    }
+
+    pub fn new_tab(&mut self, path: Vec<String>) {
+        self.clear_key_buffer();
+        self.save_current_tab();
+        let id = self.next_tab_id;
+        self.next_tab_id = self.next_tab_id.saturating_add(1);
+        self.tabs.push(TabSnapshot {
+            id,
+            title: path.first().cloned().or_else(|| Some("/".to_string())),
+            current_path: path,
+            ..Default::default()
+        });
+        self.active_tab = self.tabs.len() - 1;
+        self.load_current_tab();
+    }
+
+    pub fn switch_tab(&mut self, index: usize) -> bool {
+        self.clear_key_buffer();
+        if index >= self.tabs.len() || index == self.active_tab {
+            return false;
+        }
+        self.save_current_tab();
+        self.active_tab = index;
+        self.load_current_tab();
+        true
+    }
+
+    pub fn next_tab(&mut self) -> bool {
+        if self.tabs.len() <= 1 {
+            return false;
+        }
+        let next = (self.active_tab + 1) % self.tabs.len();
+        self.switch_tab(next)
+    }
+
+    pub fn prev_tab(&mut self) -> bool {
+        if self.tabs.len() <= 1 {
+            return false;
+        }
+        let prev = if self.active_tab == 0 {
+            self.tabs.len() - 1
+        } else {
+            self.active_tab - 1
+        };
+        self.switch_tab(prev)
+    }
+
+    pub fn close_current_tab(&mut self) -> bool {
+        self.clear_key_buffer();
+        if self.tabs.len() <= 1 {
+            return false;
+        }
+        self.current_page = None;
+        self.current_preview = None;
+        self.current_preview_path = None;
+        self.page_cache.clear();
+        self.preview_cache.clear();
+        self.navigation_history.clear();
+        self.navigation_forward_history.clear();
+        self.tabs.remove(self.active_tab);
+        if self.active_tab >= self.tabs.len() {
+            self.active_tab = self.tabs.len() - 1;
+        }
+        self.load_current_tab();
+        true
     }
 
     fn set_page_entries(page: &mut Page, entries: Vec<PageEntry>) {
