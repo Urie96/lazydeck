@@ -110,6 +110,15 @@ function M.setup()
     -- 设置键盘映射等
 end
 
+-- 插件元信息（可选，同步返回；进入插件页后会缓存到 deck.cache 供根页面显示）
+function M.meta()
+    return {
+        icon = "󰏗",       -- Nerd Font 图标
+        desc = "插件描述",
+        color = "cyan",   -- icon 前景色
+    }
+end
+
 -- 列出条目（必需）
 function M.list(path, cb)
     -- path 为绝对路径，例如 {'docker', 'container'}

@@ -202,8 +202,9 @@ deck.url.decode("hello%20world") -- "hello world"
 应用启动时执行的默认初始化：
 
 - 根据 `plugins` 配置把本地 `dir` 和远程安装目录加入 `package.path`
-- 根路径 `/` 固定展示所有已配置插件
+- 根路径 `/` 固定展示所有已配置插件，并从 `deck.cache` 读取插件 `icon` / `desc` 元信息用于展示
 - 进入 `/plugin_name/...` 时懒加载该插件并执行其 `config/setup`
+- 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；进入插件页后会缓存到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
 - 加载用户配置（通过 `require 'init'`）
 - 实现 `deck._list()` 和 `deck._preview()` 入口函数

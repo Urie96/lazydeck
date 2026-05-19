@@ -536,6 +536,14 @@ function M.setup()
     end)
 end
 
+function M.meta()
+    return {
+        icon = "󰏗",
+        desc = "自定义插件描述",
+        color = "cyan",
+    }
+end
+
 function M.list(path, cb)
     -- 列出目录内容
     deck.fs.read_dir_sync(path, function(entries, err)

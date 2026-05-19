@@ -98,21 +98,48 @@ local function rebuild_plugin_index()
   end
 end
 
+local PLUGIN_META_CACHE_NS = 'lazydeck.plugin.meta'
+local DEFAULT_PLUGIN_ICON = '󰏗'
+
 local function plugin_status(spec)
   if spec.is_remote and not deck._pm.is_installed(spec) then return 'missing' end
   return 'installed'
 end
 
-local function plugin_display(spec)
-  local color = plugin_status(spec) == 'missing' and 'yellow' or 'white'
+local function plugin_cached_meta(name)
+  local meta = deck.cache.get(PLUGIN_META_CACHE_NS, name)
+  if type(meta) ~= 'table' then meta = {} end
+  local icon = meta.icon or DEFAULT_PLUGIN_ICON
+  local desc = meta.desc or ''
+  local color = meta.color or 'cyan'
+  if type(icon) ~= 'string' or icon == '' then icon = DEFAULT_PLUGIN_ICON end
+  if type(desc) ~= 'string' then desc = '' end
+  if type(color) ~= 'string' or color == '' then color = 'cyan' end
+  return {
+    icon = icon,
+    desc = desc,
+    color = color,
+  }
+end
+
+local function plugin_display(spec, meta)
+  local status = plugin_status(spec)
+  local name_color = status == 'missing' and 'yellow' or 'white'
   return deck.style.line {
-    deck.style.span(spec.name):fg(color),
+    deck.style.span(meta.icon .. ' '):fg(meta.color),
+    deck.style.span(spec.name):fg(name_color):bold(),
+    '  ',
+    deck.style.span(meta.desc):fg 'DarkGray',
   }
 end
 
 local function list_root_plugins(cb)
   local entries = {}
+  local lines = {}
   for _, spec in ipairs(runtime.explicit_plugin_specs) do
+    local meta = plugin_cached_meta(spec.name)
+    local display = plugin_display(spec, meta)
+    table.insert(lines, display)
     table.insert(entries, {
       key = spec.name,
       repo = spec.repo,
@@ -120,11 +147,49 @@ local function list_root_plugins(cb)
       dir = spec.dir,
       is_remote = spec.is_remote,
       status = plugin_status(spec),
-      display = plugin_display(spec),
+      icon = meta.icon,
+      desc = meta.desc,
+      color = meta.color,
+      display = display,
+      bottom_line = meta.desc ~= '' and meta.desc or nil,
       preview = function(self, preview_cb) deck._manager.preview(self, preview_cb) end,
     })
   end
+  deck.style.align_columns(lines)
   cb(entries)
+end
+
+local function normalize_plugin_meta(meta)
+  if type(meta) ~= 'table' then meta = {} end
+  local icon = meta.icon
+  local desc = meta.desc
+  local color = meta.color or 'cyan'
+  if type(icon) ~= 'string' or icon == '' then icon = DEFAULT_PLUGIN_ICON end
+  if type(desc) ~= 'string' then desc = '' end
+  if type(color) ~= 'string' or color == '' then color = 'cyan' end
+  return {
+    icon = icon,
+    desc = desc,
+    color = color,
+  }
+end
+
+local function collect_plugin_meta(plugin)
+  if type(plugin.meta) ~= 'function' then return normalize_plugin_meta({}) end
+
+  local ok, meta = pcall(plugin.meta)
+  if not ok then
+    deck.log('error', 'Failed to load plugin meta: {}', tostring(meta))
+    return normalize_plugin_meta({})
+  end
+
+  return normalize_plugin_meta(meta)
+end
+
+local function cache_plugin_meta(name, plugin)
+  local meta = collect_plugin_meta(plugin)
+  deck.cache.set(PLUGIN_META_CACHE_NS, name, meta)
+  return meta
 end
 
 local function load_plugin(name)
@@ -148,6 +213,7 @@ local function ensure_plugin(name)
   if not runtime.configured_plugins[name] then
     local ok_config, config_err = pcall(spec.config)
     if not ok_config then return nil, config_err end
+    cache_plugin_meta(name, plugin)
     runtime.configured_plugins[name] = true
   end
 
