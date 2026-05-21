@@ -468,7 +468,7 @@ deck.hook.post_page_enter(function(ctx) print(vim.inspect(ctx.path)) end)
 "你好世界":utf8_sub(1, 3)  -- UTF-8 字符截取
 ```
 
-`utf8_sub()` 在 Lua 5.3+/5.4 下使用内置 `utf8` 库，在 LuaJIT 下会自动退回到内置的兼容实现。
+`utf8_sub()` 使用内置 `utf8` 库。
 
 支持的颜色：`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`
 

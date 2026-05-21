@@ -8,7 +8,7 @@
 ## 特性
 
 - 🚀 **高性能** - 基于 Rust 构建，异步事件驱动
-- 🔌 **Lua 插件系统** - 使用 LuaJIT 脚本语言扩展功能
+- 🔌 **Lua 插件系统** - 使用 Lua 5.5 脚本语言扩展功能
 - 🎨 **语法高亮** - 内置 180+ 种编程语言语法高亮支持
 - 🖥️ **现代化 UI** - 使用 ratatui 构建的美观终端界面
 - ⌨️ **可配置键位导航** - 默认支持方向键、`gg`/`G`、`/` 等，并可通过 `deck.config.keymap` 覆盖
@@ -351,7 +351,7 @@ lazydeck /docker/container   # 启动后直接进入指定页面
 
 ### Rust 核心依赖
 
-- **mlua** - LuaJIT 绑定
+- **mlua** - Lua 5.5 绑定
 - **tokio** - 异步运行时
 - **crossterm** - 终端控制
 - **ratatui** - TUI 组件库

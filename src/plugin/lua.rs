@@ -467,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn string_preset_utf8_sub_works_without_utf8_global() -> mlua::Result<()> {
+    fn string_preset_utf8_sub_works() -> mlua::Result<()> {
         let lua = Lua::new();
         let globals = lua.globals();
 
@@ -489,7 +489,6 @@ mod tests {
             })?,
         )?;
         globals.set("_deck", raw_deck)?;
-        globals.set("utf8", mlua::Value::Nil)?;
 
         lua.load(
             &include_bytes!(concat!(
