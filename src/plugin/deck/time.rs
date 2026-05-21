@@ -138,21 +138,21 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
         .create_function(|_, ()| Ok(chrono::Utc::now().timestamp()))?
         .into_lua(lua)?;
 
-    // Format Unix timestamp to ISO 8601 string (or custom format)
+    // Format Unix timestamp in the local timezone to ISO 8601 string (or custom format)
     let format = lua
         .create_function(|_, (timestamp, format_opt): (i64, Option<String>)| {
             use chrono::{DateTime, Local};
 
             let dt_utc = DateTime::<chrono::Utc>::from_timestamp(timestamp, 0)
                 .ok_or_else(|| LuaError::RuntimeError("Invalid timestamp".to_string()))?;
+            let dt_local = dt_utc.with_timezone(&Local);
 
             match format_opt.as_deref() {
-                // Compact format: adaptively choose format based on time distance
+                // Compact format: adaptively choose format based on local time distance
                 Some("compact") => {
-                    let dt_local = dt_utc.with_timezone(&Local);
                     let now_local = Local::now();
 
-                    // Check if it's today
+                    // Check if it's today in local timezone
                     let is_today = dt_local.date_naive() == now_local.date_naive();
 
                     if is_today {
@@ -170,8 +170,8 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
                     let now = chrono::Utc::now().timestamp();
                     Ok(relative_phrase(dt_utc.timestamp() - now))
                 }
-                Some(fmt) => Ok(dt_utc.format(fmt).to_string()),
-                None => Ok(dt_utc.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)),
+                Some(fmt) => Ok(dt_local.format(fmt).to_string()),
+                None => Ok(dt_local.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)),
             }
         })?
         .into_lua(lua)?;
@@ -233,16 +233,22 @@ mod tests {
 
         // Use a known timestamp: 2023-01-01 00:00:00 UTC = 1672531200
         let known_ts = 1672531200;
+        let expected_local = chrono::DateTime::<chrono::Utc>::from_timestamp(known_ts, 0)
+            .unwrap()
+            .with_timezone(&chrono::Local);
 
         let format_fn: mlua::Function = time_table.get("format").unwrap();
         let formatted: String = format_fn.call((known_ts, None::<String>)).unwrap();
-        assert_eq!(formatted, "2023-01-01T00:00:00Z");
+        assert_eq!(
+            formatted,
+            expected_local.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        );
 
-        // Custom format
+        // Custom format should also use local timezone
         let formatted: String = format_fn
             .call((known_ts, Some("%Y-%m-%d".to_string())))
             .unwrap();
-        assert_eq!(formatted, "2023-01-01");
+        assert_eq!(formatted, expected_local.format("%Y-%m-%d").to_string());
     }
 
     #[test]

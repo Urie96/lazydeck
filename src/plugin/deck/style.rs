@@ -130,6 +130,25 @@ mod tests {
     }
 
     #[test]
+    fn test_text_can_reuse_line_userdata() {
+        let lua = Lua::new();
+        let line_fn = line(&lua).expect("Failed to create line function");
+        let text_fn = text(&lua).expect("Failed to create text function");
+        let line_args = lua.create_table().expect("Failed to create line args");
+        line_args.set(1, "hello").expect("Failed to set line arg");
+        let line_ud: LuaAnyUserData = line_fn.call(line_args).expect("Failed to render line");
+
+        for _ in 0..2 {
+            let text_args = lua.create_table().expect("Failed to create text args");
+            text_args.set(1, line_ud.clone()).expect("Failed to set text arg");
+            let rendered: LuaAnyUserData = text_fn.call(text_args).expect("Failed to render text");
+            let borrowed = rendered.borrow::<LuaText>().expect("Failed to borrow text");
+            assert_eq!(borrowed.0.lines.len(), 1);
+            assert_eq!(borrowed.0.lines[0], Line::raw("hello"));
+        }
+    }
+
+    #[test]
     fn test_text_preserves_empty_string_as_blank_line() {
         let lua = Lua::new();
         let text_fn = text(&lua).expect("Failed to create text function");
@@ -163,8 +182,8 @@ pub fn line(lua: &Lua) -> mlua::Result<LuaFunction> {
                     spans.push(Span::raw(content));
                 }
                 LuaValue::UserData(ud) => {
-                    if let Ok(span) = ud.take::<LuaSpan>() {
-                        spans.push(span.0);
+                    if let Ok(span) = ud.borrow::<LuaSpan>() {
+                        spans.push(span.0.clone());
                     } else {
                         return Err(LuaError::RuntimeError(
                             "Expected Span or String in table".to_string(),
@@ -204,12 +223,12 @@ pub fn text(lua: &Lua) -> mlua::Result<LuaFunction> {
                     }
                 }
                 LuaValue::UserData(ud) => {
-                    if let Ok(text) = ud.take::<LuaText>() {
-                        lines.extend(text.0.lines);
-                    } else if let Ok(line) = ud.take::<LuaLine>() {
-                        lines.push(line.0);
-                    } else if let Ok(span) = ud.take::<LuaSpan>() {
-                        lines.push(Line::from(span.0));
+                    if let Ok(text) = ud.borrow::<LuaText>() {
+                        lines.extend(text.0.lines.clone());
+                    } else if let Ok(line) = ud.borrow::<LuaLine>() {
+                        lines.push(line.0.clone());
+                    } else if let Ok(span) = ud.borrow::<LuaSpan>() {
+                        lines.push(Line::from(span.0.clone()));
                     } else {
                         return Err(LuaError::RuntimeError(
                             "Expected Text, Line, Span, or String in table".to_string(),

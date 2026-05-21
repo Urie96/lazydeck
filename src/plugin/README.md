@@ -324,6 +324,15 @@ deck.config {
 
 支持的键位名包括 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`history_back`、`history_forward`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`，以及 `input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会按这些配置重新执行一遍 `deck.keymap.set`。
 
+插件 spec 可以设置 `lazy = false`，用于在 `deck.config` 调用时立即加载并执行 `config/setup`；未设置时默认懒加载：
+
+```lua
+{
+  'owner/notification-history.lazydeck',
+  lazy = false,
+}
+```
+
 插件 spec 也可以定义全局 `keys`：
 
 ```lua
@@ -440,7 +449,7 @@ end
 |------|------|
 | `deck.time.parse(str)` | 解析时间字符串为 Unix 时间戳 |
 | `deck.time.now()` | 获取当前 Unix 时间戳 |
-| `deck.time.format(ts, fmt)` | 格式化时间戳 |
+| `deck.time.format(ts, fmt)` | 使用本地时区格式化时间戳 |
 
 支持的时间格式：
 - ISO 8601: `2023-12-25T15:30:45Z`

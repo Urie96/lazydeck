@@ -10,7 +10,7 @@ function time.now() return _deck.time.now() end
 ---@return number timestamp The Unix timestamp (seconds since epoch)
 function time.parse(time_str) return _deck.time.parse(time_str) end
 
----Format a Unix timestamp to an ISO 8601 string (or custom format)
+---Format a Unix timestamp in local timezone to an ISO 8601 string (or custom format)
 ---@param timestamp number The Unix timestamp (seconds since epoch)
 ---@param format_str string? Optional format string:
 --- - "compact" - Compact format: HH:MM for today, MM-DD for this year, YYYY-MM for older dates

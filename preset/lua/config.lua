@@ -336,6 +336,18 @@ local function apply_configured_keymap()
   map_input(cfg.keymap.input_external_editor, edit_current_input_in_external_editor, 'edit input in external editor')
 end
 
+local function load_startup_plugins()
+  for _, spec in ipairs(runtime.explicit_plugin_specs or {}) do
+    if spec.lazy == false then
+      local _, err = ensure_plugin(spec.name)
+      if err then
+        deck.log('error', 'Failed to load startup plugin {}: {}', spec.name, tostring(err))
+        deck.notify(tostring(err))
+      end
+    end
+  end
+end
+
 local function register_plugin_keymaps()
   for _, spec in ipairs(runtime.explicit_plugin_specs or {}) do
     local keys = spec.keys
@@ -383,7 +395,10 @@ function config.setup(opt)
   apply_configured_keymap()
   register_plugin_keymaps()
   deck._manager.setup(cfg.plugins)
-  deck._pm.install_missing(cfg.plugins, function() deck.cmd 'reload' end)
+  deck._pm.install_missing(cfg.plugins, function()
+    load_startup_plugins()
+    deck.cmd 'reload'
+  end)
 
   function deck._list()
     local path = deck.api.get_current_path()
@@ -415,7 +430,12 @@ function config.setup(opt)
 
     local cb = guarded_preview_callback(path)
     if type(entry.preview) == 'function' then
-      local preview_text = entry:preview(cb)
+      local ok, preview_text = pcall(function() return entry:preview(cb) end)
+      if not ok then
+        deck.log('error', 'Failed to render entry preview: {}', tostring(preview_text))
+        cb(tostring(preview_text))
+        return
+      end
       if preview_text then cb(preview_text) end
       return
     end
@@ -427,7 +447,13 @@ function config.setup(opt)
     end
 
     local plugin = ensure_plugin(current_path[1])
-    if plugin and plugin.preview then plugin.preview(entry, cb) end
+    if plugin and plugin.preview then
+      local ok, err = pcall(plugin.preview, entry, cb)
+      if not ok then
+        deck.log('error', 'Failed to render plugin preview for {}: {}', tostring(current_path[1]), tostring(err))
+        cb(tostring(err))
+      end
+    end
   end
 end
 

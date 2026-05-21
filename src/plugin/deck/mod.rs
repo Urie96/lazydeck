@@ -10,6 +10,8 @@ mod http_server;
 mod json;
 mod keymap;
 mod path;
+#[cfg(test)]
+mod plugin_manager;
 mod secrets;
 mod socket;
 mod style;

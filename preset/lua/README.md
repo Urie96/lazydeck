@@ -204,6 +204,7 @@ deck.url.decode("hello%20world") -- "hello world"
 - 根据 `plugins` 配置把本地 `dir` 和远程安装目录加入 `package.path`
 - 根路径 `/` 固定展示所有已配置插件，并从 `deck.cache` 读取插件 `icon` / `desc` 元信息用于展示
 - 进入 `/plugin_name/...` 时懒加载该插件并执行其 `config/setup`
+- 插件 spec 可设置 `lazy = false`，在 `deck.config` 调用时立即加载并执行 `config/setup`，适合通知历史等需要启动即初始化的插件
 - 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；进入插件页后会缓存到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
 - 加载用户配置（通过 `require 'init'`）
@@ -340,7 +341,20 @@ deck.config {
 
 支持的字段有：`up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`history_back`、`history_forward`、`quit`、`force_quit`、`command_prompt`、`filter`、`clear_filter`、`back`、`open`、`enter`、`input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会根据当前 `keymap` 重新调用一遍 `deck.keymap.set`。
 
-插件 spec 支持 `keys` 字段注册懒加载全局快捷键：
+插件 spec 支持 `lazy = false`，用于在 `deck.config` 调用时立即加载并执行 `config/setup`；未设置时默认懒加载：
+
+```lua
+deck.config {
+  plugins = {
+    {
+      'owner/notification-history.lazydeck',
+      lazy = false,
+    },
+  },
+}
+```
+
+插件 spec 也支持 `keys` 字段注册懒加载全局快捷键：
 
 ```lua
 deck.config {
@@ -525,7 +539,7 @@ sock:close()
 ```lua
 deck.time.now()                      -- 当前时间戳
 deck.time.parse("2023-12-25T15:30:45Z")  -- 解析时间字符串
-deck.time.format(1704067200)         -- 格式化时间戳
+deck.time.format(1704067200)         -- 使用本地时区格式化时间戳
 deck.time.format(1704067200, "compact")  -- 紧凑格式
 deck.time.format(1704067200, "relative") -- 相对时间格式
 ```
@@ -565,6 +579,7 @@ local spec = deck._pm.parse_plugin_spec('owner/plugin.lazydeck')
 -- spec.url = 'https://github.com/owner/plugin.lazydeck.git'
 -- spec.install_path = '~/.local/share/lazydeck/plugins/plugin.lazydeck'
 -- spec.config = auto-generated function() require('plugin').setup() end
+-- spec.lazy = true
 
 local local_spec = deck._pm.parse_plugin_spec({ dir = 'plugins/my-plugin.lazydeck' })
 -- local_spec.name = 'my-plugin'

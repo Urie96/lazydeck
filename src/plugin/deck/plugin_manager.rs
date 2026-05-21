@@ -6,7 +6,7 @@ mod tests {
     /// Must be kept in sync with preset/lua/plugin_manager.lua
     const TEST_LUA: &str = r#"
 local data_dir = os.getenv('HOME') .. '/.local/share/lazydeck/plugins'
-local __lazydeck_config_base_dir = __lazydeck_test_tmpdir .. '/lazydeck-tests'
+local __lazydeck_config_base_dir = (__lazydeck_test_tmpdir:gsub('[/\\]+$', '')) .. '/lazydeck-tests'
 
 local function is_absolute_path(path)
   return path:match '^/' or path:match '^%a:[/\\]'
@@ -23,8 +23,7 @@ local function resolve_local_dir(dir)
 
   if is_absolute_path(dir) then return dir end
 
-  local base_dir = rawget(_G, '__lazydeck_config_base_dir') or '.'
-  return base_dir .. '/' .. dir
+  return __lazydeck_config_base_dir .. '/' .. dir
 end
 
 local function plugin_name_from_dir(dir)
@@ -58,12 +57,14 @@ local function parse_plugin_spec(spec)
     name = source
   end
 
-  local branch, tag, commit, config_fn
+  local branch, tag, commit, config_fn, lazy
+  lazy = true
   if type(spec) == 'table' then
     branch = spec.branch
     tag = spec.tag
     commit = spec.commit
     config_fn = spec.config
+    if spec.lazy == false then lazy = false end
     if spec.dependencies ~= nil then
       error("plugin spec no longer supports 'dependencies'; list all plugins directly in deck.config.plugins")
     end
@@ -84,6 +85,7 @@ local function parse_plugin_spec(spec)
     tag = tag,
     commit = commit,
     config = config_fn,
+    lazy = lazy,
   }
 
   if dir then
@@ -301,6 +303,35 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
 
         let commit: String = result.get("commit")?;
         assert_eq!(commit, "abc1234567890def");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_with_lazy_false() -> mlua::Result<()> {
+        let lua = Lua::new();
+        let (parse, _, _) = load_test_module(&lua)?;
+
+        let spec = lua.create_table()?;
+        spec.set(1, "owner/startup.lazydeck")?;
+        spec.set("lazy", false)?;
+        let result: mlua::Table = parse.call(spec)?;
+
+        let lazy: bool = result.get("lazy")?;
+        assert!(!lazy);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_lazy_defaults_to_true() -> mlua::Result<()> {
+        let lua = Lua::new();
+        let (parse, _, _) = load_test_module(&lua)?;
+
+        let result: mlua::Table = parse.call("owner/lazy.lazydeck")?;
+
+        let lazy: bool = result.get("lazy")?;
+        assert!(lazy);
 
         Ok(())
     }
