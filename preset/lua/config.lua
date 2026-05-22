@@ -106,59 +106,6 @@ local function plugin_status(spec)
   return 'installed'
 end
 
-local function plugin_cached_meta(name)
-  local meta = deck.cache.get(PLUGIN_META_CACHE_NS, name)
-  if type(meta) ~= 'table' then meta = {} end
-  local icon = meta.icon or DEFAULT_PLUGIN_ICON
-  local desc = meta.desc or ''
-  local color = meta.color or 'cyan'
-  if type(icon) ~= 'string' or icon == '' then icon = DEFAULT_PLUGIN_ICON end
-  if type(desc) ~= 'string' then desc = '' end
-  if type(color) ~= 'string' or color == '' then color = 'cyan' end
-  return {
-    icon = icon,
-    desc = desc,
-    color = color,
-  }
-end
-
-local function plugin_display(spec, meta)
-  local status = plugin_status(spec)
-  local name_color = status == 'missing' and 'yellow' or 'white'
-  return deck.style.line {
-    deck.style.span(meta.icon .. ' '):fg(meta.color),
-    deck.style.span(spec.name):fg(name_color):bold(),
-    '  ',
-    deck.style.span(meta.desc):fg 'DarkGray',
-  }
-end
-
-local function list_root_plugins(cb)
-  local entries = {}
-  local lines = {}
-  for _, spec in ipairs(runtime.explicit_plugin_specs) do
-    local meta = plugin_cached_meta(spec.name)
-    local display = plugin_display(spec, meta)
-    table.insert(lines, display)
-    table.insert(entries, {
-      key = spec.name,
-      repo = spec.repo,
-      url = spec.url,
-      dir = spec.dir,
-      is_remote = spec.is_remote,
-      status = plugin_status(spec),
-      icon = meta.icon,
-      desc = meta.desc,
-      color = meta.color,
-      display = display,
-      bottom_line = meta.desc ~= '' and meta.desc or nil,
-      preview = function(self, preview_cb) deck._manager.preview(self, preview_cb) end,
-    })
-  end
-  deck.style.align_columns(lines)
-  cb(entries)
-end
-
 local function normalize_plugin_meta(meta)
   if type(meta) ~= 'table' then meta = {} end
   local icon = meta.icon
@@ -203,6 +150,57 @@ local function load_plugin(name)
   end
 
   return runtime.loaded_plugins[name], spec
+end
+
+local function ensure_plugin_meta(name)
+  local meta = deck.cache.get(PLUGIN_META_CACHE_NS, name)
+  if type(meta) == 'table' then return normalize_plugin_meta(meta) end
+
+  local plugin = load_plugin(name)
+  if not plugin then return normalize_plugin_meta({}) end
+
+  return cache_plugin_meta(name, plugin)
+end
+
+local function plugin_cached_meta(name)
+  return ensure_plugin_meta(name)
+end
+
+local function plugin_display(spec, meta)
+  local status = plugin_status(spec)
+  local name_color = status == 'missing' and 'yellow' or 'white'
+  return deck.style.line {
+    deck.style.span(meta.icon .. ' '):fg(meta.color),
+    deck.style.span(spec.name):fg(name_color):bold(),
+    '  ',
+    deck.style.span(meta.desc):fg 'DarkGray',
+  }
+end
+
+local function list_root_plugins(cb)
+  local entries = {}
+  local lines = {}
+  for _, spec in ipairs(runtime.explicit_plugin_specs) do
+    local meta = plugin_cached_meta(spec.name)
+    local display = plugin_display(spec, meta)
+    table.insert(lines, display)
+    table.insert(entries, {
+      key = spec.name,
+      repo = spec.repo,
+      url = spec.url,
+      dir = spec.dir,
+      is_remote = spec.is_remote,
+      status = plugin_status(spec),
+      icon = meta.icon,
+      desc = meta.desc,
+      color = meta.color,
+      display = display,
+      bottom_line = meta.desc ~= '' and meta.desc or nil,
+      preview = function(self, preview_cb) deck._manager.preview(self, preview_cb) end,
+    })
+  end
+  deck.style.align_columns(lines)
+  cb(entries)
 end
 
 local function ensure_plugin(name)

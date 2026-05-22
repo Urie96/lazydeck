@@ -214,7 +214,7 @@ deck.url.decode("hello%20world") -- "hello world"
 - 根路径 `/` 固定展示所有已配置插件，并从 `deck.cache` 读取插件 `icon` / `desc` 元信息用于展示
 - 进入 `/plugin_name/...` 时懒加载该插件并执行其 `config/setup`
 - 插件 spec 可设置 `lazy = false`，在 `deck.config` 调用时立即加载并执行 `config/setup`，适合通知历史等需要启动即初始化的插件
-- 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；进入插件页后会缓存到 `lazydeck.plugin.meta` namespace
+- 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；根路径展示插件时如果缓存不存在，会尝试加载插件并缓存 meta；插件不存在/`require` 失败时不写缓存，插件存在但未实现 `meta()` 时缓存空 meta 到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
 - 加载用户配置（通过 `require 'init'`）
 - 实现 `deck._list()` 和 `deck._preview()` 入口函数
