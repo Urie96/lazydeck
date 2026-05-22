@@ -140,7 +140,9 @@ mod tests {
 
         for _ in 0..2 {
             let text_args = lua.create_table().expect("Failed to create text args");
-            text_args.set(1, line_ud.clone()).expect("Failed to set text arg");
+            text_args
+                .set(1, line_ud.clone())
+                .expect("Failed to set text arg");
             let rendered: LuaAnyUserData = text_fn.call(text_args).expect("Failed to render text");
             let borrowed = rendered.borrow::<LuaText>().expect("Failed to borrow text");
             assert_eq!(borrowed.0.lines.len(), 1);

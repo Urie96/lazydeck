@@ -42,6 +42,10 @@ fn get_cache_path(namespace: &str) -> mlua::Result<PathBuf> {
 struct CacheEntry {
     value: serde_json::Value,
     expires: Option<u64>, // Unix timestamp
+    #[serde(default)]
+    ttl: Option<u64>,
+    #[serde(default)]
+    refresh_on_get: bool,
 }
 
 #[derive(Debug, Default)]
@@ -143,6 +147,19 @@ fn ensure_namespace_loaded<'a>(
 
 fn now_ts() -> u64 {
     chrono::Utc::now().timestamp() as u64
+}
+
+fn refresh_cache_entry(entry: &mut CacheEntry, now: u64) -> bool {
+    if !entry.refresh_on_get {
+        return false;
+    }
+
+    let Some(ttl) = entry.ttl else {
+        return false;
+    };
+
+    entry.expires = Some(now.saturating_add(ttl));
+    true
 }
 
 fn flush_dirty_locked(store: &mut HashMap<String, NamespaceCache>) -> mlua::Result<()> {
@@ -253,16 +270,25 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
             |lua, (namespace, key): (String, String)| -> mlua::Result<LuaValue> {
                 let mut store = lock_store()?;
                 let cache = ensure_namespace_loaded(&mut store, &namespace)?;
+                let now = now_ts();
 
-                if let Some(entry) = cache.entries.get(&key) {
-                    if let Some(expires) = entry.expires {
-                        if expires <= now_ts() {
-                            cache.entries.remove(&key);
-                            cache.dirty = true;
-                            return Ok(LuaValue::Nil);
-                        }
+                let expired = match cache.entries.get(&key) {
+                    Some(entry) => entry.expires.map(|expires| expires <= now).unwrap_or(false),
+                    None => return Ok(LuaValue::Nil),
+                };
+
+                if expired {
+                    cache.entries.remove(&key);
+                    cache.dirty = true;
+                    return Ok(LuaValue::Nil);
+                }
+
+                if let Some(entry) = cache.entries.get_mut(&key) {
+                    let value = entry.value.clone();
+                    if refresh_cache_entry(entry, now) {
+                        cache.dirty = true;
                     }
-                    return json_to_lua(lua, entry.value.clone());
+                    return json_to_lua(lua, value);
                 }
 
                 Ok(LuaValue::Nil)
@@ -277,18 +303,23 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
                 let cache = ensure_namespace_loaded(&mut store, &namespace)?;
                 let json_value = lua_to_json(value)?;
 
-                let expires = if let Some(opts) = opts {
+                let (ttl, refresh_on_get) = if let Some(opts) = opts {
                     let ttl: Option<u64> = opts.get("ttl").ok();
-                    ttl.map(|ttl| now_ts() + ttl)
+                    let refresh_on_get: bool = opts.get("refresh_on_get").unwrap_or(false);
+                    (ttl, refresh_on_get)
                 } else {
-                    None
+                    (None, false)
                 };
+
+                let expires = ttl.map(|ttl| now_ts().saturating_add(ttl));
 
                 cache.entries.insert(
                     key,
                     CacheEntry {
                         value: json_value,
                         expires,
+                        ttl,
+                        refresh_on_get: ttl.is_some() && refresh_on_get,
                     },
                 );
                 cache.dirty = true;
@@ -334,7 +365,7 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
 
 #[cfg(test)]
 mod tests {
-    use super::namespace_to_filename;
+    use super::{namespace_to_filename, refresh_cache_entry, CacheEntry};
 
     #[test]
     fn namespace_filename_is_hex_encoded() {
@@ -347,5 +378,31 @@ mod tests {
     #[test]
     fn empty_namespace_is_rejected() {
         assert!(namespace_to_filename("").is_err());
+    }
+
+    #[test]
+    fn refresh_cache_entry_updates_expiration_when_enabled() {
+        let mut entry = CacheEntry {
+            value: serde_json::Value::String("demo".to_string()),
+            expires: Some(10),
+            ttl: Some(30),
+            refresh_on_get: true,
+        };
+
+        assert!(refresh_cache_entry(&mut entry, 100));
+        assert_eq!(entry.expires, Some(130));
+    }
+
+    #[test]
+    fn refresh_cache_entry_skips_disabled_entries() {
+        let mut entry = CacheEntry {
+            value: serde_json::Value::String("demo".to_string()),
+            expires: Some(10),
+            ttl: Some(30),
+            refresh_on_get: false,
+        };
+
+        assert!(!refresh_cache_entry(&mut entry, 100));
+        assert_eq!(entry.expires, Some(10));
     }
 }

@@ -351,7 +351,10 @@ mod tests {
             .create_userdata(LuaSpan(Span::raw("hello")))
             .expect("create span userdata");
         let line = lua
-            .create_userdata(LuaLine(Line::from(vec![Span::raw("foo"), Span::raw("bar")])))
+            .create_userdata(LuaLine(Line::from(vec![
+                Span::raw("foo"),
+                Span::raw("bar"),
+            ])))
             .expect("create line userdata");
         let text = lua
             .create_userdata(LuaText(Text::from(vec![

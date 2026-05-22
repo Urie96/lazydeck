@@ -155,6 +155,7 @@ return M
 | `deck.fs`     | 文件系统操作      |
 | `deck.http`   | HTTP 请求         |
 | `deck.html`   | HTML 解析与选择器 |
+| `deck.hash`   | Hash 计算（MD5）  |
 | `deck.system` | 执行外部命令      |
 | `deck.cache`  | 持久化缓存        |
 | `deck.time`   | 时间解析格式化    |

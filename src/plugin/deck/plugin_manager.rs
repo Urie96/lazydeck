@@ -131,7 +131,9 @@ end
 return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_remote_plugins }
 "#;
 
-    fn load_test_module(lua: &Lua) -> mlua::Result<(mlua::Function, mlua::Function, mlua::Function)> {
+    fn load_test_module(
+        lua: &Lua,
+    ) -> mlua::Result<(mlua::Function, mlua::Function, mlua::Function)> {
         lua.globals().set(
             "__lazydeck_test_tmpdir",
             std::env::temp_dir().to_string_lossy().to_string(),
@@ -360,7 +362,9 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
         deps.set(2, "owner/dep2.lazydeck")?;
         spec.set("dependencies", deps)?;
         let err = parse.call::<mlua::Value>(spec).unwrap_err();
-        assert!(err.to_string().contains("no longer supports 'dependencies'"));
+        assert!(err
+            .to_string()
+            .contains("no longer supports 'dependencies'"));
 
         Ok(())
     }

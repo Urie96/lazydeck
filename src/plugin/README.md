@@ -13,6 +13,7 @@ src/plugin/
     ├── api.rs          # 页面管理 API
     ├── cache.rs        # 缓存系统
     ├── fs.rs           # 文件系统操作
+    ├── hash.rs         # Hash 计算
     ├── highlighter.rs  # 语法高亮
     ├── http.rs         # HTTP 客户端
     ├── http_server.rs  # 本地 HTTP 服务
@@ -119,13 +120,14 @@ scope(lua, state, sender, || {
 | 函数 | 说明 |
 |------|------|
 | `cache.get(namespace, key)` | 获取缓存值 |
-| `cache.set(namespace, key, value, opts)` | 设置缓存值（支持 TTL） |
+| `cache.set(namespace, key, value, opts)` | 设置缓存值（支持 TTL 和可选的读时续期） |
 | `cache.delete(namespace, key)` | 删除缓存 |
 | `cache.clear(namespace)` | 清空指定 namespace 的缓存 |
 
 ```lua
 -- 使用示例
 deck.cache.set("github.releases", "user_data", {name = "test"}, {ttl = 3600})  -- TTL 为秒
+deck.cache.set("github.releases", "user_data", {name = "test"}, {ttl = 3600, refresh_on_get = true})
 local data = deck.cache.get("github.releases", "user_data")
 ```
 
@@ -236,6 +238,18 @@ end
   },
   body = 'optional text body',
 }
+```
+
+### deck.hash - Hash
+
+Hash 计算能力：
+
+| 函数 | 说明 |
+|------|------|
+| `hash.md5(data)` | 返回字符串原始字节的 MD5 小写十六进制摘要 |
+
+```lua
+local digest = deck.hash.md5('hello') -- 5d41402abc4b2a76b9719d911017c592
 ```
 
 ### deck.html - HTML 解析

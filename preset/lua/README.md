@@ -13,6 +13,7 @@ preset/lua/
 ├── component.lua     # UI 组件（对话框、通知）
 ├── copy_from_neovim.lua # 从 Neovim 复用的表工具函数
 ├── fs.lua            # 文件系统 API 封装
+├── hash.lua          # Hash API 封装（MD5）
 ├── html.lua          # HTML 解析 API 封装
 ├── http.lua          # HTTP API 封装
 ├── http_server.lua   # 本地 HTTP 服务封装
@@ -77,7 +78,7 @@ deck.hook.pre_reload(cb)               -- 添加重载前钩子
 
 ```lua
 deck.cache.get(namespace, key)           -- 获取缓存
-deck.cache.set(namespace, key, value, opts)  -- 设置缓存（支持 TTL）
+deck.cache.set(namespace, key, value, opts)  -- 设置缓存（支持 TTL，支持 refresh_on_get）
 deck.cache.delete(namespace, key)        -- 删除缓存
 deck.cache.clear(namespace)              -- 清空指定 namespace 的缓存
 ```
@@ -170,6 +171,14 @@ end)
 local url = deck.http_server.url('song', { id = 123 })
 local info = deck.http_server.info()
 deck.http_server.unregister_resolver('song')
+```
+
+### hash.lua - Hash
+
+Hash 相关封装：
+
+```lua
+deck.hash.md5('hello')  -- '5d41402abc4b2a76b9719d911017c592'
 ```
 
 ### html.lua - HTML 解析
@@ -698,6 +707,7 @@ end)
 
 -- 使用缓存
 deck.cache.set("demo", "api_result", {data = "something"}, {ttl = 300})
+deck.cache.set("demo", "api_result", {data = "something"}, {ttl = 300, refresh_on_get = true})
 local cached = deck.cache.get("demo", "api_result")
 
 -- 交互式确认

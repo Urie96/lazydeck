@@ -3,6 +3,7 @@ mod base64;
 mod cache;
 mod clipboard;
 mod fs;
+mod hash;
 mod highlighter;
 mod html;
 mod http;
@@ -73,6 +74,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
     let cache = cache::new_table(lua)?.into_lua(lua)?;
     let clipboard = clipboard::new_table(lua)?.into_lua(lua)?;
     let fs = fs::new_table(lua)?.into_lua(lua)?;
+    let hash = hash::new_table(lua)?.into_lua(lua)?;
     let html = html::new_table(lua)?.into_lua(lua)?;
     let http = http::new_table(lua)?.into_lua(lua)?;
     let http_server = http_server::new_table(lua)?.into_lua(lua)?;
@@ -378,6 +380,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         ("cache", cache),
         ("clipboard", clipboard),
         ("fs", fs),
+        ("hash", hash),
         ("html", html),
         ("http", http),
         ("http_server", http_server),

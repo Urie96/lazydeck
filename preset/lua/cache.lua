@@ -1,5 +1,6 @@
 ---@class CacheOptions
 ---@field ttl number? Time-to-live in seconds (optional)
+---@field refresh_on_get boolean? Refresh TTL when cache is read and ttl is set
 
 ---@class deck.cache
 local cache = {}
