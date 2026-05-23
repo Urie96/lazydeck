@@ -1,3 +1,4 @@
+use html_to_markdown_rs::{convert, ConversionOptions};
 use mlua::prelude::*;
 use scraper::{ElementRef, Html, Selector};
 use std::sync::Arc;
@@ -104,6 +105,10 @@ impl LuaUserData for LuaHtmlDocument {
 
         methods.add_method("html", |_, this, ()| Ok(this.inner.raw_html.clone()));
 
+        methods.add_method("to_markdown", |_, this, ()| {
+            html_to_markdown(&this.inner.raw_html)
+        });
+
         methods.add_meta_method(LuaMetaMethod::ToString, |_, this, ()| {
             Ok(this.inner.raw_html.clone())
         });
@@ -116,6 +121,7 @@ impl LuaUserData for LuaHtmlNode {
         methods.add_method("html", |_, this, ()| Ok(this.html.clone()));
         methods.add_method("inner_html", |_, this, ()| Ok(this.inner_html.clone()));
         methods.add_method("text", |_, this, ()| Ok(this.text.clone()));
+        methods.add_method("to_markdown", |_, this, ()| html_to_markdown(&this.html));
         methods.add_method("attr", |_, this, name: String| Ok(this.attr(&name)));
         methods.add_method("attrs", |lua, this, ()| attrs_to_lua(lua, &this.attrs));
 
@@ -166,6 +172,14 @@ fn parse_selector(selector: &str) -> mlua::Result<Selector> {
     })
 }
 
+fn html_to_markdown(source: &str) -> mlua::Result<String> {
+    let options = ConversionOptions::builder().extract_metadata(false).build();
+    let result = convert(source, Some(options)).map_err(|err| {
+        LuaError::RuntimeError(format!("Failed to convert HTML to Markdown: {}", err))
+    })?;
+    Ok(result.content.unwrap_or_default())
+}
+
 fn attrs_to_lua(lua: &Lua, attrs: &[(String, String)]) -> mlua::Result<LuaTable> {
     let table = lua.create_table()?;
     for (name, value) in attrs {
@@ -204,6 +218,10 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
                 lua.create_userdata(LuaHtmlDocument::parse_fragment(html))
             })?,
         ),
+        (
+            "to_markdown",
+            lua.create_function(|_, html: String| html_to_markdown(&html))?,
+        ),
     ])
 }
 
@@ -233,6 +251,18 @@ mod tests {
         let link = repo.first("a")?.expect("expected link node");
         assert_eq!(link.text, "rust-lang/rust");
         assert_eq!(link.attr("href").as_deref(), Some("/rust-lang/rust"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn html_to_markdown_conversion_works() -> mlua::Result<()> {
+        let markdown = html_to_markdown("<h1>Hello</h1><p>World</p>")?;
+        assert!(markdown.contains("# Hello"));
+        assert!(markdown.contains("World"));
+
+        let html = LuaHtmlDocument::parse_document("<main><h2>Title</h2></main>".to_string());
+        assert!(html_to_markdown(&html.inner.raw_html)?.contains("## Title"));
 
         Ok(())
     }

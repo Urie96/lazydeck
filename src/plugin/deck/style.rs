@@ -166,8 +166,15 @@ mod tests {
     }
 }
 
+fn lua_string_lossy(s: LuaString) -> String {
+    match s.to_str() {
+        Ok(value) => value.to_owned(),
+        Err(_) => String::from_utf8_lossy(&s.as_bytes()).into_owned(),
+    }
+}
+
 pub fn span(lua: &Lua) -> mlua::Result<LuaFunction> {
-    lua.create_function(|_lua, s: String| Ok(LuaSpan(Span::raw(s))))
+    lua.create_function(|_lua, s: LuaString| Ok(LuaSpan(Span::raw(lua_string_lossy(s)))))
 }
 
 /// Create a Line from a table of Spans or Strings
@@ -180,8 +187,7 @@ pub fn line(lua: &Lua) -> mlua::Result<LuaFunction> {
             let (_, arg) = pair?;
             match arg {
                 LuaValue::String(s) => {
-                    let content = s.to_str()?.to_string();
-                    spans.push(Span::raw(content));
+                    spans.push(Span::raw(lua_string_lossy(s)));
                 }
                 LuaValue::UserData(ud) => {
                     if let Ok(span) = ud.borrow::<LuaSpan>() {
@@ -214,7 +220,7 @@ pub fn text(lua: &Lua) -> mlua::Result<LuaFunction> {
             let (_, arg) = pair?;
             match arg {
                 LuaValue::String(s) => {
-                    let content = s.to_str()?;
+                    let content = lua_string_lossy(s);
                     if content.is_empty() {
                         lines.push(Line::raw(String::new()));
                     } else {
@@ -250,7 +256,8 @@ pub fn text(lua: &Lua) -> mlua::Result<LuaFunction> {
 
 /// Highlight code with syntax highlighting
 pub fn highlight(lua: &Lua) -> mlua::Result<LuaFunction> {
-    lua.create_function(|_lua, (code, language): (String, String)| {
+    lua.create_function(|_lua, (code, language): (LuaString, String)| {
+        let code = lua_string_lossy(code);
         highlighter::highlight(&code, &language)
             .map(|text| LuaText(text))
             .map_err(|e| LuaError::RuntimeError(format!("Highlighting failed: {}", e)))

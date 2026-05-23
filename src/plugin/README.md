@@ -260,6 +260,7 @@ local digest = deck.hash.md5('hello') -- 5d41402abc4b2a76b9719d911017c592
 |------|------|
 | `html.parse(source)` | 按完整 HTML 文档解析，返回 `HtmlDocument` userdata |
 | `html.parse_fragment(source)` | 按 HTML 片段解析，返回 `HtmlDocument` userdata |
+| `html.to_markdown(source)` | 将 HTML 字符串转换为 Markdown 字符串 |
 
 `HtmlDocument` 方法：
 
@@ -268,6 +269,7 @@ local digest = deck.hash.md5('hello') -- 5d41402abc4b2a76b9719d911017c592
 | `doc:select(selector)` | 返回 `HtmlNodeList` |
 | `doc:first(selector)` | 返回首个 `HtmlNode`，不存在时为 `nil` |
 | `doc:html()` | 返回原始 HTML |
+| `doc:to_markdown()` | 将当前文档原始 HTML 转换为 Markdown |
 
 `HtmlNode` 方法：
 
@@ -277,10 +279,18 @@ local digest = deck.hash.md5('hello') -- 5d41402abc4b2a76b9719d911017c592
 | `node:html()` | 节点 outer HTML |
 | `node:inner_html()` | 节点 inner HTML |
 | `node:text()` | 节点及后代文本拼接结果 |
+| `node:to_markdown()` | 将当前节点 outer HTML 转换为 Markdown |
 | `node:attr(name)` | 获取单个属性 |
 | `node:attrs()` | 获取全部属性表 |
 | `node:select(selector)` | 在当前节点片段内继续查询 |
 | `node:first(selector)` | 在当前节点片段内查询首个匹配 |
+
+```lua
+local markdown = deck.html.to_markdown("<h1>Hello</h1><p>World</p>")
+local doc = deck.html.parse(response.body)
+local article = doc:first("article")
+local article_md = article and article:to_markdown()
+```
 
 `HtmlNodeList` 方法：
 

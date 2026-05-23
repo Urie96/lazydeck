@@ -14,6 +14,9 @@ function HtmlDocument:first(selector) return wrap_node(self._raw:first(selector)
 ---@return string
 function HtmlDocument:html() return self._raw:html() end
 
+---@return string
+function HtmlDocument:to_markdown() return self._raw:to_markdown() end
+
 ---@class HtmlNode
 local HtmlNode = {}
 
@@ -28,6 +31,9 @@ function HtmlNode:inner_html() return self._raw:inner_html() end
 
 ---@return string
 function HtmlNode:text() return self._raw:text() end
+
+---@return string
+function HtmlNode:to_markdown() return self._raw:to_markdown() end
 
 ---@param name string
 ---@return string|nil
@@ -94,6 +100,12 @@ end
 ---@return HtmlDocument
 function html.parse_fragment(source)
   return wrap_document(_deck.html.parse_fragment(source))
+end
+
+---@param source string
+---@return string
+function html.to_markdown(source)
+  return _deck.html.to_markdown(source)
 end
 
 deck.html = html

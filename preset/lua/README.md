@@ -183,7 +183,7 @@ deck.hash.md5('hello')  -- '5d41402abc4b2a76b9719d911017c592'
 
 ### html.lua - HTML 解析
 
-HTML 文档/片段解析与 CSS selector 查询封装：
+HTML 文档/片段解析、CSS selector 查询，以及 HTML 转 Markdown 封装：
 
 ```lua
 local doc = deck.html.parse(response.body)
@@ -194,7 +194,10 @@ if first then
   local link = first:first("h2 a")
   local href = link and link:attr("href")
   local text = link and link:text()
+  local markdown = first:to_markdown()
 end
+
+local markdown = deck.html.to_markdown("<h1>Hello</h1><p>World</p>")
 ```
 
 ### url.lua - URL 编解码
@@ -652,19 +655,24 @@ Lua 语言服务器类型声明文件，为 IDE 提供类型提示。
 8. `string.lua`
 9. `inspect.lua`
 10. `json.lua`
-11. `time.lua`
-12. `keymap.lua`
-13. `http.lua`
-14. `cache.lua`
-15. `fs.lua`
-16. `util.lua`
-17. `base64.lua`
-18. `url.lua`
-19. `clipboard.lua`
-20. `yaml.lua`
-21. `plugin_manager.lua` ← 插件管理核心逻辑（提供 `deck._pm`）
-22. `manager.lua` ← 插件管理器 UI（提供 `deck._manager`）
-23. `init.lua` ← 最后加载，执行初始化逻辑
+11. `promise.lua`
+12. `time.lua`
+13. `keymap.lua`
+14. `html.lua`
+15. `http.lua`
+16. `http_server.lua`
+17. `cache.lua`
+18. `fs.lua`
+19. `hash.lua`
+20. `util.lua`
+21. `base64.lua`
+22. `url.lua`
+23. `clipboard.lua`
+24. `secrets.lua`
+25. `yaml.lua`
+26. `plugin_manager.lua` ← 插件管理核心逻辑（提供 `deck._pm`）
+27. `manager.lua` ← 插件管理器 UI（提供 `deck._manager`）
+28. `config.lua` ← 最后加载，执行初始化逻辑
 
 ## 使用示例
 
