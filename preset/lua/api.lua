@@ -23,6 +23,16 @@ function api.set_entries(path, entries) return _deck.api.set_entries(path, entri
 ---@return PageEntry? entry The hovered entry or nil
 function api.get_hovered() return _deck.api.get_hovered() end
 
+---Get page-level selected entries; falls back to the hovered entry when none are selected
+---@return PageEntry[] entries Selected entries, or {hovered_entry}, or an empty list
+function api.get_selected() return _deck.api.get_selected() end
+
+---Toggle the hovered entry in the current page selection and move down by one entry
+function api.toggle_selected() return _deck.api.toggle_selected() end
+
+---Clear current page selection
+function api.clear_selected() return _deck.api.clear_selected() end
+
 ---Set hovered entry by full path
 ---@param path string[] The full path including the entry key
 function api.set_hovered(path) return _deck.api.set_hovered(path) end

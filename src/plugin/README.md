@@ -87,6 +87,7 @@ scope(lua, state, sender, || {
 - `bottom_line?: string|Span|Line` - 当 entry 被 hover 时，渲染在底部左侧的一行
 - `keymap?: table` - entry 局部快捷键
 - `preview?: function` - entry 局部预览回调
+- `selectable?: boolean` - 是否允许参与页面级选择
 
 | 函数 | 说明 |
 |------|------|
@@ -98,6 +99,9 @@ scope(lua, state, sender, || {
 | `go_to(path)` | 导航到指定路径 |
 | `get_current_path()` | 获取当前路径 |
 | `get_hovered_path()` | 获取悬停项路径 |
+| `get_selected()` | 获取当前页面选中的 entries；如果没有任何选中项，则返回当前 hovered entry |
+| `toggle_selected()` | 切换当前 hovered entry 的选中状态，并自动下移一项 |
+| `clear_selected()` | 清空当前页面的选中状态 |
 | `argv()` | 获取命令行参数 |
 | `get_filter()` | 获取当前过滤条件 |
 | `get_available_keymaps()` | 获取当前上下文可用快捷键 |

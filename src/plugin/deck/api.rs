@@ -83,6 +83,42 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
         })?
         .into_lua(lua)?;
 
+    let toggle_selected = lua
+        .create_function(|lua, ()| {
+            plugin::mut_scope_state(lua, |state| {
+                if state.toggle_hovered_selected() {
+                    plugin::send_render_event(lua)?;
+                    plugin::send_event(lua, Event::Command("scroll_by 1".to_string()))?;
+                }
+                Ok(())
+            })
+        })?
+        .into_lua(lua)?;
+
+    let clear_selected = lua
+        .create_function(|lua, ()| {
+            plugin::mut_scope_state(lua, |state| {
+                if state.clear_selected_entries() {
+                    plugin::send_render_event(lua)?;
+                }
+                Ok(())
+            })
+        })?
+        .into_lua(lua)?;
+
+    let get_selected = lua
+        .create_function(|lua, ()| {
+            plugin::borrow_scope_state(lua, |state| {
+                lua.create_sequence_from(
+                    state
+                        .selected_or_hovered_entries()
+                        .iter()
+                        .map(|entry| entry.tbl.clone()),
+                )
+            })
+        })?
+        .into_lua(lua)?;
+
     let get_entries = lua
         .create_function(|lua, path: Option<Vec<String>>| {
             plugin::borrow_scope_state(lua, |state| {
@@ -187,6 +223,9 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
         ("set_entries", set_entries),
         ("get_entries", get_entries),
         ("get_hovered", get_hovered),
+        ("get_selected", get_selected),
+        ("toggle_selected", toggle_selected),
+        ("clear_selected", clear_selected),
         ("set_hovered", set_hovered),
         ("set_preview", set_preview),
         ("go_to", go_to),

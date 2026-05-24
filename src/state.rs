@@ -869,6 +869,49 @@ mod tests {
     }
 
     #[test]
+    fn selected_or_hovered_entries_falls_back_to_hovered() {
+        let lua = Lua::new();
+        let mut state = State::new();
+        state.set_current_page_entries(vec![
+            make_entry_with_key(&lua, "a"),
+            make_entry_with_key(&lua, "b"),
+        ]);
+
+        let entries = state.selected_or_hovered_entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].key, "a");
+    }
+
+    #[test]
+    fn toggle_hovered_selected_tracks_current_page_entries_and_go_to_clears() {
+        let lua = Lua::new();
+        let mut state = State::new();
+        state.current_path = vec!["file".to_string()];
+        state.set_current_page_entries(vec![
+            make_entry_with_key(&lua, "a"),
+            make_entry_with_key(&lua, "b"),
+        ]);
+
+        assert!(state.toggle_hovered_selected());
+        assert!(state.is_entry_selected("a"));
+        assert_eq!(state.selected_or_hovered_entries()[0].key, "a");
+
+        state.scroll_by(1);
+        assert!(state.toggle_hovered_selected());
+        let selected = state.selected_or_hovered_entries();
+        assert_eq!(
+            selected
+                .iter()
+                .map(|entry| entry.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a", "b"]
+        );
+
+        state.go_to(vec!["file".to_string(), "tmp".to_string()], true);
+        assert!(state.selected_entry_keys.is_empty());
+    }
+
+    #[test]
     fn set_hover_by_path_selects_matching_entry_on_current_page() {
         let lua = Lua::new();
         let mut state = State::new();
@@ -1125,6 +1168,9 @@ pub struct State {
     navigation_history: Vec<Vec<String>>,
     /// Navigation history for jumping forward after jumping back
     navigation_forward_history: Vec<Vec<String>>,
+    /// Page-level selected entry keys for the current page.
+    /// Cleared automatically when navigating to another page.
+    pub selected_entry_keys: Vec<String>,
     /// Hooks to call before reload command
     pub pre_reload_hooks: Vec<LuaFunction>,
     /// Hooks to call before quit command
@@ -1166,6 +1212,7 @@ impl State {
         if self.tabs.is_empty() {
             return;
         }
+        self.selected_entry_keys.clear();
         self.stash_current_preview();
         let tab = &mut self.tabs[self.active_tab];
         tab.title = self
@@ -1184,6 +1231,7 @@ impl State {
     }
 
     fn load_current_tab(&mut self) {
+        self.selected_entry_keys.clear();
         let tab = &mut self.tabs[self.active_tab];
         self.current_path = tab.current_path.clone();
         self.current_page = tab.current_page.take();
@@ -1422,6 +1470,58 @@ impl State {
         })
     }
 
+    pub fn is_entry_selected(&self, key: &str) -> bool {
+        self.selected_entry_keys
+            .iter()
+            .any(|selected| selected == key)
+    }
+
+    pub fn clear_selected_entries(&mut self) -> bool {
+        if self.selected_entry_keys.is_empty() {
+            return false;
+        }
+        self.selected_entry_keys.clear();
+        true
+    }
+
+    pub fn toggle_hovered_selected(&mut self) -> bool {
+        self.clear_key_buffer();
+        let Some(hovered) = self.hovered() else {
+            return false;
+        };
+        if hovered.selectable().unwrap_or(true) == false {
+            return false;
+        }
+        let key = hovered.key.clone();
+
+        if let Some(idx) = self
+            .selected_entry_keys
+            .iter()
+            .position(|selected| selected == &key)
+        {
+            self.selected_entry_keys.remove(idx);
+        } else {
+            self.selected_entry_keys.push(key);
+        }
+        true
+    }
+
+    pub fn selected_or_hovered_entries(&self) -> Vec<PageEntry> {
+        let Some(page) = &self.current_page else {
+            return Vec::new();
+        };
+
+        if self.selected_entry_keys.is_empty() {
+            return self.hovered().cloned().into_iter().collect();
+        }
+
+        page.filtered_list
+            .iter()
+            .filter(|entry| self.is_entry_selected(&entry.key))
+            .cloned()
+            .collect()
+    }
+
     fn entry_keymap_candidates(&self) -> anyhow::Result<Vec<ResolvedKeymap>> {
         if self.current_mode != Mode::Main {
             return Ok(Vec::new());
@@ -1497,7 +1597,11 @@ impl State {
                     key: keymap.raw_key.clone(),
                     desc: keymap.desc.clone(),
                     callback: keymap.callback.clone(),
-                    source: if keymap.path.is_some() { "page" } else { "global" },
+                    source: if keymap.path.is_some() {
+                        "page"
+                    } else {
+                        "global"
+                    },
                     path_priority: keymap.path.as_ref().map(|path| path.priority()),
                 }),
         );
@@ -1558,10 +1662,9 @@ impl State {
         let mut cands = Vec::new();
         for keymap in self.keymap_config.iter().rev().filter(|keymap| {
             keymap.mode == self.current_mode
-                && keymap
-                    .path
-                    .as_ref()
-                    .is_some_and(|path| path.matches(&self.current_path) && path.priority() == best_priority)
+                && keymap.path.as_ref().is_some_and(|path| {
+                    path.matches(&self.current_path) && path.priority() == best_priority
+                })
                 && keymap
                     .key_sequence
                     .prefix_match(&self.last_key_event_buffer)
@@ -1619,6 +1722,7 @@ impl State {
         }
 
         self.current_path = path.clone();
+        self.selected_entry_keys.clear();
         self.current_preview_path = None;
 
         // Try to restore page from cache

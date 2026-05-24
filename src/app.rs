@@ -759,9 +759,13 @@ impl StatefulWidget for AppWidget {
             Layout::horizontal([Percentage(50), Length(1), Fill(1)]).areas(main_inner);
 
         let scrolloff = state.scrolloff;
+        let selected_entry_keys = state.selected_entry_keys.clone();
 
         if let Some(page) = &mut state.current_page {
-            let list_widget = ListWidget { scrolloff };
+            let list_widget = ListWidget {
+                scrolloff,
+                selected_entry_keys,
+            };
             list_widget.render(list_area, buf, page);
         } else {
             render_loading_placeholder(list_area, buf);

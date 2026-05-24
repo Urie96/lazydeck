@@ -56,6 +56,7 @@ preset/lua 目录中的脚本是 Rust 后端 API 的 Lua 封装层。它们：
 - `bottom_line?: string|Span|Line` - 当前 entry 被 hover 时显示在底部左侧的一行
 - `keymap?: table` - entry 局部快捷键
 - `preview?: function` - entry 局部预览回调
+- `selectable?: boolean` - 是否允许参与页面级选择
 
 ```lua
 deck.api.set_entries(path, entries)    -- path=nil 为当前页面，entries=nil 清空 Rust 侧页面
@@ -66,6 +67,9 @@ deck.api.set_preview(path, widget)     -- path=nil 为当前悬停项，widget=n
 deck.api.go_to(path)                   -- 导航到路径
 deck.api.get_current_path()            -- 获取当前路径
 deck.api.get_hovered_path()            -- 获取悬停项完整路径
+deck.api.get_selected()                -- 获取当前页面选中的 entries；若没有选中则返回当前 hovered entry
+deck.api.toggle_selected()             -- 切换当前 hovered entry 的选中状态，并自动下移一项
+deck.api.clear_selected()              -- 清空当前页面选中状态
 deck.api.argv()                        -- 获取命令行参数
 deck.api.get_filter()                  -- 获取当前过滤字符串
 deck.api.set_filter()                  -- 设置当前过滤字符串

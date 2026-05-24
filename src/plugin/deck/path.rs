@@ -26,7 +26,11 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
 mod tests {
     #[test]
     fn path_match_supports_star_and_globstar() {
-        let path = vec!["docker".to_string(), "container".to_string(), "abc".to_string()];
+        let path = vec![
+            "docker".to_string(),
+            "container".to_string(),
+            "abc".to_string(),
+        ];
         assert!(crate::KeymapPathPattern::from_path_str("/docker/*/**").matches(&path));
         assert!(crate::KeymapPathPattern::from_path_str("/docker/**").matches(&path));
         assert!(!crate::KeymapPathPattern::from_path_str("/mail/*").matches(&path));

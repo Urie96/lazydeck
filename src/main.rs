@@ -50,7 +50,9 @@ struct CliOptions {
     config_path: Option<PathBuf>,
 }
 
-fn parse_cli_options(args: impl IntoIterator<Item = OsString>) -> anyhow::Result<Option<CliOptions>> {
+fn parse_cli_options(
+    args: impl IntoIterator<Item = OsString>,
+) -> anyhow::Result<Option<CliOptions>> {
     let mut args = args.into_iter();
     let _program = args.next();
 
@@ -187,7 +189,10 @@ mod tests {
         let opt = parse_cli_options(os_args(&["lazydeck", "/docker/container"]))
             .unwrap()
             .unwrap();
-        assert_eq!(opt.initial_path, vec!["docker".to_string(), "container".to_string()]);
+        assert_eq!(
+            opt.initial_path,
+            vec!["docker".to_string(), "container".to_string()]
+        );
     }
 
     #[test]
@@ -195,7 +200,10 @@ mod tests {
         let opt = parse_cli_options(os_args(&["lazydeck", "-c", "/tmp/demo/init.lua"]))
             .unwrap()
             .unwrap();
-        assert_eq!(opt.config_path.as_deref(), Some(std::path::Path::new("/tmp/demo/init.lua")));
+        assert_eq!(
+            opt.config_path.as_deref(),
+            Some(std::path::Path::new("/tmp/demo/init.lua"))
+        );
     }
 
     #[test]
@@ -203,7 +211,10 @@ mod tests {
         let opt = parse_cli_options(os_args(&["lazydeck", "--config=/tmp/demo"]))
             .unwrap()
             .unwrap();
-        assert_eq!(opt.config_path.as_deref(), Some(std::path::Path::new("/tmp/demo")));
+        assert_eq!(
+            opt.config_path.as_deref(),
+            Some(std::path::Path::new("/tmp/demo"))
+        );
     }
 
     #[test]
@@ -219,13 +230,21 @@ mod tests {
 
     #[test]
     fn parse_cli_options_supports_help_flag() {
-        assert!(parse_cli_options(os_args(&["lazydeck", "--help"])).unwrap().is_none());
-        assert!(parse_cli_options(os_args(&["lazydeck", "-h"])).unwrap().is_none());
+        assert!(parse_cli_options(os_args(&["lazydeck", "--help"]))
+            .unwrap()
+            .is_none());
+        assert!(parse_cli_options(os_args(&["lazydeck", "-h"]))
+            .unwrap()
+            .is_none());
     }
 
     #[test]
     fn parse_cli_options_supports_version_flag() {
-        assert!(parse_cli_options(os_args(&["lazydeck", "--version"])).unwrap().is_none());
-        assert!(parse_cli_options(os_args(&["lazydeck", "-V"])).unwrap().is_none());
+        assert!(parse_cli_options(os_args(&["lazydeck", "--version"]))
+            .unwrap()
+            .is_none());
+        assert!(parse_cli_options(os_args(&["lazydeck", "-V"]))
+            .unwrap()
+            .is_none());
     }
 }

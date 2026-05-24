@@ -29,6 +29,17 @@ impl PageEntry {
         }
     }
 
+    pub fn selectable(&self) -> LuaResult<bool> {
+        match self.tbl.get::<LuaValue>("selectable")? {
+            LuaValue::Nil => Ok(true),
+            LuaValue::Boolean(value) => Ok(value),
+            other => Err(LuaError::RuntimeError(format!(
+                "entry.selectable must be a boolean, got {}",
+                other.type_name()
+            ))),
+        }
+    }
+
     fn extract_line_field(&self, field: &str) -> anyhow::Result<Option<Line<'static>>> {
         match self.tbl.get::<LuaValue>(field)? {
             LuaValue::Nil => Ok(None),

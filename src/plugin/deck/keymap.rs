@@ -8,9 +8,11 @@ fn resolve_path(lua: &Lua, opt: Option<&LuaTable>) -> mlua::Result<Option<Keymap
 
     let path = match opt.get::<Option<LuaValue>>("path")? {
         None => None,
-        Some(LuaValue::Integer(0)) | Some(LuaValue::Number(0.0)) => Some(
-            plugin::borrow_scope_state(lua, |state| Ok(state.current_path.clone()))?,
-        ),
+        Some(LuaValue::Integer(0)) | Some(LuaValue::Number(0.0)) => {
+            Some(plugin::borrow_scope_state(lua, |state| {
+                Ok(state.current_path.clone())
+            })?)
+        }
         Some(LuaValue::Table(tbl)) => Some(
             tbl.sequence_values::<String>()
                 .collect::<mlua::Result<Vec<_>>>()?,

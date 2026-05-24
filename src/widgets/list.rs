@@ -5,11 +5,15 @@ use crate::Page;
 /// List widget with scrolloff - keeps cursor away from edges (like vim's scrolloff)
 pub struct ListWidget {
     pub scrolloff: usize,
+    pub selected_entry_keys: Vec<String>,
 }
 
 impl Default for ListWidget {
     fn default() -> Self {
-        Self { scrolloff: 5 }
+        Self {
+            scrolloff: 5,
+            selected_entry_keys: Vec::new(),
+        }
     }
 }
 
@@ -57,6 +61,7 @@ impl StatefulWidget for ListWidget {
         {
             let y = area.top() + (i - offset) as u16;
             let is_selected = Some(i) == selected;
+            let is_api_selected = self.selected_entry_keys.iter().any(|key| key == &entry.key);
 
             // Get display text
             let line = entry.display();
@@ -89,8 +94,25 @@ impl StatefulWidget for ListWidget {
                     buf[(x, y)].set_char(' ').set_style(selected_style);
                 }
 
+                // Render page-level selection marker before entry content.
+                let marker_style = if is_api_selected {
+                    Style::default().fg(Color::Yellow).bg(selected_color)
+                } else {
+                    selected_style
+                };
+                buf[(content_area.left(), y)]
+                    .set_char(if is_api_selected { '▌' } else { ' ' })
+                    .set_style(marker_style);
+
+                let display_area = Rect {
+                    x: content_area.left().saturating_add(1),
+                    y,
+                    width: content_area.width.saturating_sub(1),
+                    height: 1,
+                };
+
                 // Create a new line with white foreground and background
-                line.patch_style(selected_style).render(content_area, buf);
+                line.patch_style(selected_style).render(display_area, buf);
             } else {
                 // Normal: render with padding on both sides
                 // Clear the entire line
@@ -106,8 +128,24 @@ impl StatefulWidget for ListWidget {
                     height: 1,
                 };
 
+                // Render page-level selection marker before entry content.
+                buf[(content_area.left(), y)]
+                    .set_char(if is_api_selected { '▌' } else { ' ' })
+                    .set_style(if is_api_selected {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    });
+
+                let display_area = Rect {
+                    x: content_area.left().saturating_add(1),
+                    y,
+                    width: content_area.width.saturating_sub(1),
+                    height: 1,
+                };
+
                 // Render content using Line widget
-                line.render(content_area, buf);
+                line.render(display_area, buf);
             }
         }
     }
