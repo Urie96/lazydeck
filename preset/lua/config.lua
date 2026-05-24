@@ -47,7 +47,8 @@ end
 
 local function add_config_base_path()
   local package = require 'package'
-  local base_dir = os.getenv 'HOME' .. '/.config/lazydeck'
+  local base_dir = os.getenv 'LAZYDECK_CONFIG_BASE_DIR'
+    or (os.getenv 'HOME' .. '/.config/lazydeck')
 
   local paths = { package.path }
   local seen = {}
@@ -229,12 +230,12 @@ local function open_help()
   local lines = {}
 
   for _, item in ipairs(deck.api.get_available_keymaps()) do
-    local source = item.source == 'entry' and '[entry]' or '[global]'
+    local source = item.source == 'entry' and '[entry]' or item.source == 'page' and '[page]' or '[global]'
     local desc = item.desc or 'no description'
     local line = deck.style.line {
       deck.style.span(item.key):fg 'yellow',
       '  ',
-      deck.style.span(source):fg(item.source == 'entry' and 'cyan' or 'blue'),
+      deck.style.span(source):fg(item.source == 'entry' and 'cyan' or item.source == 'page' and 'green' or 'blue'),
       '  ',
       deck.style.span(desc):fg 'white',
     }
@@ -465,4 +466,11 @@ setmetatable(deck.config, {
   __call = function(self, opt) deck.config.setup(opt) end,
 })
 
-require 'init'
+local config_file = os.getenv 'LAZYDECK_CONFIG_FILE'
+if config_file and config_file ~= '' then
+  local chunk, err = loadfile(config_file)
+  if not chunk then error(err) end
+  chunk()
+else
+  require 'init'
+end

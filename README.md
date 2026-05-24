@@ -59,6 +59,10 @@ cargo run --release -- --version
 
 # 运行并直接进入指定页面
 cargo run --release -- /docker/container
+
+# 使用自定义配置文件或配置目录
+cargo run --release -- --config ~/.config/lazydeck/init.lua
+cargo run --release -- --config ~/.config/lazydeck
 ```
 
 ## 项目结构
@@ -208,7 +212,7 @@ lazydeck 自带多个示例插件：
 
 ## 配置
 
-在 `config/init.lua` 中配置（对应 `~/.config/lazydeck/init.lua`）：
+在 `config/init.lua` 中配置（对应 `~/.config/lazydeck/init.lua`）。也可以用 `lazydeck -c/--config` 指定其他配置文件或配置目录：
 
 ```lua
 deck.config {

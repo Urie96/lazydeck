@@ -218,12 +218,33 @@ function api.get_filter() return _deck.api.get_filter() end
 ---@field key string
 ---@field desc? string
 ---@field callback fun()
----@field source "entry"|"global"
+---@field source "entry"|"page"|"global"
 
 ---Get all currently available keymaps in the current context
----Entry-local keymaps are returned before global keymaps
+---Entry-local keymaps are returned before page keymaps, then global keymaps
 ---@return AvailableKeymap[]
 function api.get_available_keymaps() return _deck.api.get_available_keymaps() end
+
+---@class deck.path
+local path = deck.path or {}
+
+---Split a path into segments
+---@param path string
+---@return string[]
+function path.split(path) return _deck.path.split(path) end
+
+---Join path segments into a path
+---@param path_list string[]
+---@return string
+function path.join(path_list) return _deck.path.join(path_list) end
+
+---Check whether a path matches a pattern
+---@param path string[]
+---@param pattern string
+---@return boolean
+function path.match(path, pattern) return _deck.path.match(path, pattern) end
+
+deck.path = path
 
 deck.api = api
 deck.hook = deck.hook or {}

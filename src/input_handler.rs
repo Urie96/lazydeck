@@ -90,7 +90,7 @@ mod tests {
             key_sequence: "<C-a>".into(),
             callback,
             desc: None,
-            once: false,
+            path: None,
         });
 
         let handled = handle_input_dialog_key(

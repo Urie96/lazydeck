@@ -90,7 +90,7 @@ main.rs
 Logs::start()           # 初始化日志
 errors::install_hooks()  # 安装 panic 钩子
 term::init()            # 初始化终端
-parse_initial_path()    # 解析命令行参数（--help / --version / 可选初始路径）
+parse_cli_options()     # 解析命令行参数（--help / --version / --config / 可选初始路径）
     │
     ▼
 App::new(initial_path)

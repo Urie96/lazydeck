@@ -1,10 +1,37 @@
-use crate::{plugin, Keymap, Mode};
+use crate::{plugin, Keymap, KeymapPathPattern, Mode};
 use mlua::prelude::*;
+
+fn resolve_path(lua: &Lua, opt: Option<&LuaTable>) -> mlua::Result<Option<KeymapPathPattern>> {
+    let Some(opt) = opt else {
+        return Ok(None);
+    };
+
+    let path = match opt.get::<Option<LuaValue>>("path")? {
+        None => None,
+        Some(LuaValue::Integer(0)) | Some(LuaValue::Number(0.0)) => Some(
+            plugin::borrow_scope_state(lua, |state| Ok(state.current_path.clone()))?,
+        ),
+        Some(LuaValue::Table(tbl)) => Some(
+            tbl.sequence_values::<String>()
+                .collect::<mlua::Result<Vec<_>>>()?,
+        ),
+        Some(other) => {
+            return Err(LuaError::RuntimeError(format!(
+                "keymap path must be 0 or a string array, got {}",
+                other.type_name()
+            )))
+        }
+    };
+
+    Ok(path.map(KeymapPathPattern::new))
+}
 
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
     let set = lua
         .create_function(
             |lua, (mode, key, cb, opt): (Mode, String, LuaValue, Option<LuaTable>)| {
+                let path = resolve_path(lua, opt.as_ref())?;
+
                 // Convert the callback to a LuaFunction
                 let callback = match cb {
                     LuaValue::String(s) => {
@@ -22,15 +49,10 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
                         )))
                     }
                 };
-                let (desc, once) = opt
-                    .map(|opt| {
-                        Ok::<_, LuaError>((
-                            opt.get::<Option<String>>("desc")?,
-                            opt.get::<Option<bool>>("once")?.unwrap_or(false),
-                        ))
-                    })
-                    .transpose()?
-                    .unwrap_or((None, false));
+                let desc = match opt.as_ref() {
+                    Some(opt) => opt.get::<Option<String>>("desc")?,
+                    None => None,
+                };
 
                 plugin::mut_scope_state(lua, |state| {
                     state.add_keymap(Keymap {
@@ -39,7 +61,7 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
                         key_sequence: key.as_str().into(),
                         callback,
                         desc,
-                        once,
+                        path,
                     });
                     Ok(())
                 })

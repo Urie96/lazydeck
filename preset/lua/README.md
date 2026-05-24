@@ -200,6 +200,14 @@ end
 local markdown = deck.html.to_markdown("<h1>Hello</h1><p>World</p>")
 ```
 
+### path.lua - 路径操作
+
+```lua
+deck.path.split(path)          -- 分割路径为数组
+deck.path.join(path_list)      -- 合并路径数组
+deck.path.match(path, pattern) -- 判断 path 是否匹配 pattern，支持 * / **
+```
+
 ### url.lua - URL 编解码
 
 URL 百分号编码封装：
@@ -219,7 +227,7 @@ deck.url.decode("hello%20world") -- "hello world"
 - 插件 spec 可设置 `lazy = false`，在 `deck.config` 调用时立即加载并执行 `config/setup`，适合通知历史等需要启动即初始化的插件
 - 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；根路径展示插件时如果缓存不存在，会尝试加载插件并缓存 meta；插件不存在/`require` 失败时不写缓存，插件存在但未实现 `meta()` 时缓存空 meta 到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
-- 加载用户配置（通过 `require 'init'`）
+- 加载用户配置（默认 `require 'init'`，也支持通过 `LAZYDECK_CONFIG_FILE` 指定单个配置文件）
 - 实现 `deck._list()` 和 `deck._preview()` 入口函数
 
 默认配置中的 `keymap` 字段：
@@ -317,12 +325,14 @@ deck.keymap.set(mode, key, callback[, opt])
 -- key: 键序列（如 "j", "<C-d>", "<down>"）
 -- callback: 命令字符串或回调函数
 -- opt.desc: 可选描述，用于帮助面板
--- opt.once: 可选布尔值，触发一次后自动删除
+-- opt.path: 可选 page 路径 pattern，0 表示当前 page；数组里 "*" 匹配单个 segment，"**" 匹配零个或多个 segment
 ```
 
 ```lua
 deck.keymap.set('main', '?', function() end, { desc = 'help' })
-deck.keymap.set('main', 'p', function() end, { once = true, desc = 'paste once' })
+deck.keymap.set('main', 'p', function() end, { path = 0, desc = 'current page action' })
+deck.keymap.set('main', 'd', function() end, { path = { 'docker', 'container' }, desc = 'delete container' })
+deck.keymap.set('main', 'r', function() end, { path = '/mail/*', desc = 'mail page action' })
 ```
 
 `deck.config` 支持通过 `keymap` 字段覆盖内置主模式快捷键：
@@ -405,11 +415,11 @@ history_back
 }
 ```
 
-优先级顺序是：`entry.keymap` > 一次性 keymap（`opt.once = true`）> 普通全局 keymap。
-一次性 keymap 在完整触发一次后会自动删除；如果之前有相同按键的普通全局 keymap，删除后会恢复到普通全局 keymap。
+优先级顺序是：`entry.keymap` > page keymap > 普通全局 keymap。
+page keymap 通过 `deck.keymap.set(..., { path = 0 })` 绑定到当前 page，或者用 `path = { ... }` 绑定到指定 page 路径 pattern；也可以直接传字符串如 `'/mail/*'`。`"*"` 匹配单个 segment，`"**"` 匹配零个或多个 segment。重复设置同一路径 pattern 会覆盖旧的 page keymap。
 `entry.keymap` 的值也可以写成 `{ callback = fn, desc = "..." }`，供帮助面板展示描述。
 
-可以通过 `deck.api.get_available_keymaps()` 获取当前上下文下可用的 entry/once/global 快捷键列表。
+可以通过 `deck.api.get_available_keymaps()` 获取当前上下文下可用的 entry/page/global 快捷键列表。
 
 ### plugin setup helper
 

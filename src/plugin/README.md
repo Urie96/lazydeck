@@ -327,11 +327,14 @@ deck.keymap.set('input', '<C-k>', function() deck.notify('input keymap hit') end
 deck.keymap.set('input', '<enter>', 'input_submit')
 deck.keymap.set('main', '<C-x>', function() ... end)
 deck.keymap.set('main', '?', function() ... end, { desc = 'help' })
-deck.keymap.set('main', 'p', function() paste() end, { once = true, desc = 'paste once' })
+deck.keymap.set('main', 'p', function() paste() end, { path = 0, desc = 'current page action' })
+deck.keymap.set('main', 'd', function() delete_container() end, { path = { 'docker', 'container' }, desc = 'delete container' })
+deck.keymap.set('main', 'r', function() mark_mail_read() end, { path = '/mail/*', desc = 'mark mail read' })
 ```
 
 - `mode` 支持 `main` / `m` 和 `input` / `i`
 - 输入框中 `Backspace`、`Left`、`Right` 为 Rust 内置键位
+- `opt.path` 支持 `0`、`string` 或 `string[]`：`0` 表示当前 page 路径；字符串会按 `/` 拆成 path pattern；数组表示指定 page 路径 pattern；`"*"` 匹配单个 segment，`"**"` 匹配零个或多个 segment；重复调用同一路径 pattern 会覆盖旧的 page keymap
 - 其余默认动作通过 `preset/lua/config.lua` 用 `deck.keymap.set('input', ...)` 注册到内部命令或 Lua 回调，例如 `input_submit`、`input_cancel`；默认 `<C-g>` 通过 `deck.system.edit(...)` 调用外部编辑器编辑当前输入内容
 
 `deck.config` 还支持 `keymap` 字段来覆盖内置主模式键位，例如：
@@ -384,9 +387,9 @@ deck.config {
 
 - `entry.keymap` 会通过 Lua 表访问，支持由元表 `__index` 提供
 - key 是按键序列字符串，value 可以是 Lua 函数，或 `{ callback = fn, desc = "..." }`
-- 优先级为：`entry.keymap` > `opt.once = true` 的一次性 keymap > 普通全局 keymap
-- `opt.once = true` 时，该全局 keymap 完整触发一次后会自动删除；如果存在相同按键的普通全局 keymap，删除后会恢复到普通全局 keymap
-- `opt.desc` 可为全局 keymap 提供帮助面板中的描述文本
+- 优先级为：`entry.keymap` > page keymap > 普通全局 keymap
+- `opt.path` 为 `0` 时表示当前 page 路径；为 `string[]` 时表示指定 page 路径 pattern，支持 `"*"` / `"**"`；重复设置同一路径 pattern 会覆盖旧的 page keymap
+- `opt.desc` 可为全局或 page keymap 提供帮助面板中的描述文本
 
 `deck.api` 额外提供当前上下文可用快捷键查询：
 
@@ -425,6 +428,7 @@ end
 |------|------|
 | `deck.path.split(path)` | 分割路径为数组 |
 | `deck.path.join(path_list)` | 合并路径数组 |
+| `deck.path.match(path, pattern)` | 判断 path 数组是否匹配 pattern 字符串，支持 `*` / `**` |
 
 ### deck.style - UI 样式
 

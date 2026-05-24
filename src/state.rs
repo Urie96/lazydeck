@@ -5,7 +5,10 @@ use ratatui::{text::Line, text::Text, widgets::ListState};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crate::{widgets::Renderable, KeySequence, Keymap, Mode, Page, PageEntry};
+use crate::{
+    widgets::Renderable, KeySequence, Keymap, KeymapPathPattern, KeymapPathPriority, Mode, Page,
+    PageEntry,
+};
 
 /// Represents which button is selected in the confirm dialog
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,6 +57,14 @@ pub struct AvailableKeymap {
     pub desc: Option<String>,
     pub callback: LuaFunction,
     pub source: &'static str,
+    path_priority: Option<KeymapPathPriority>,
+}
+
+fn keymap_path_matches(keymap_path: Option<&KeymapPathPattern>, current_path: &[String]) -> bool {
+    match keymap_path {
+        Some(path) => path.matches(current_path),
+        None => true,
+    }
 }
 
 fn resolve_entry_keymap_value(
@@ -567,7 +578,7 @@ mod tests {
             key_sequence: KeySequence::from("x"),
             callback: make_callback(&lua, "global"),
             desc: None,
-            once: false,
+            path: None,
         });
 
         let cb = state
@@ -593,7 +604,7 @@ mod tests {
             key_sequence: KeySequence::from("x"),
             callback: make_callback(&lua, "global"),
             desc: None,
-            once: false,
+            path: None,
         });
 
         let cb = state
@@ -619,7 +630,7 @@ mod tests {
             key_sequence: KeySequence::from("g"),
             callback: make_callback(&lua, "global"),
             desc: None,
-            once: false,
+            path: None,
         });
 
         let first = state
@@ -658,9 +669,10 @@ mod tests {
     }
 
     #[test]
-    fn available_keymaps_include_entry_and_global_desc() {
+    fn available_keymaps_include_entry_page_and_global_desc() {
         let lua = Lua::new();
         let mut state = State::new();
+        state.current_path = vec!["docker".to_string(), "container".to_string()];
         state.set_current_page_entries(vec![make_entry_with_desc(
             &lua,
             "x",
@@ -669,43 +681,55 @@ mod tests {
         )]);
         state.add_keymap(Keymap {
             mode: crate::Mode::Main,
+            raw_key: "p".to_string(),
+            key_sequence: KeySequence::from("p"),
+            callback: make_callback(&lua, "page"),
+            desc: Some("page action".to_string()),
+            path: Some(vec!["docker".to_string(), "container".to_string()].into()),
+        });
+        state.add_keymap(Keymap {
+            mode: crate::Mode::Main,
             raw_key: "q".to_string(),
             key_sequence: KeySequence::from("q"),
             callback: make_callback(&lua, "global"),
             desc: Some("quit".to_string()),
-            once: false,
+            path: None,
         });
 
         let keymaps = state.available_keymaps().unwrap();
 
-        assert_eq!(keymaps.len(), 2);
+        assert_eq!(keymaps.len(), 3);
         assert_eq!(keymaps[0].source, "entry");
         assert_eq!(keymaps[0].key, "x");
         assert_eq!(keymaps[0].desc.as_deref(), Some("play song"));
-        assert_eq!(keymaps[1].source, "global");
-        assert_eq!(keymaps[1].key, "q");
-        assert_eq!(keymaps[1].desc.as_deref(), Some("quit"));
+        assert_eq!(keymaps[1].source, "page");
+        assert_eq!(keymaps[1].key, "p");
+        assert_eq!(keymaps[1].desc.as_deref(), Some("page action"));
+        assert_eq!(keymaps[2].source, "global");
+        assert_eq!(keymaps[2].key, "q");
+        assert_eq!(keymaps[2].desc.as_deref(), Some("quit"));
     }
 
     #[test]
-    fn once_keymap_overrides_global_keymap() {
+    fn page_keymap_overrides_global_keymap() {
         let lua = Lua::new();
         let mut state = State::new();
+        state.current_path = vec!["docker".to_string(), "container".to_string()];
         state.add_keymap(Keymap {
             mode: crate::Mode::Main,
             raw_key: "x".to_string(),
             key_sequence: KeySequence::from("x"),
             callback: make_callback(&lua, "global"),
             desc: None,
-            once: false,
+            path: None,
         });
         state.add_keymap(Keymap {
             mode: crate::Mode::Main,
             raw_key: "x".to_string(),
             key_sequence: KeySequence::from("x"),
-            callback: make_callback(&lua, "once"),
-            desc: Some("paste".to_string()),
-            once: true,
+            callback: make_callback(&lua, "page"),
+            desc: Some("page".to_string()),
+            path: Some(vec!["docker".to_string(), "container".to_string()].into()),
         });
 
         let cb = state
@@ -714,49 +738,107 @@ mod tests {
             .unwrap();
 
         cb.call::<()>(()).unwrap();
-        assert_eq!(lua.globals().get::<String>("hit").unwrap(), "once");
+        assert_eq!(lua.globals().get::<String>("hit").unwrap(), "page");
     }
 
     #[test]
-    fn once_keymap_is_removed_after_trigger_and_global_recovers() {
+    fn exact_page_keymap_overrides_wildcard_page_keymap() {
         let lua = Lua::new();
         let mut state = State::new();
+        state.current_path = vec!["mail".to_string(), "inbox".to_string()];
         state.add_keymap(Keymap {
             mode: crate::Mode::Main,
             raw_key: "x".to_string(),
             key_sequence: KeySequence::from("x"),
-            callback: make_callback(&lua, "global"),
+            callback: make_callback(&lua, "wildcard"),
             desc: None,
-            once: false,
+            path: Some(vec!["mail".to_string(), "*".to_string()].into()),
         });
         state.add_keymap(Keymap {
             mode: crate::Mode::Main,
             raw_key: "x".to_string(),
             key_sequence: KeySequence::from("x"),
-            callback: make_callback(&lua, "once"),
+            callback: make_callback(&lua, "exact"),
             desc: None,
-            once: true,
+            path: Some(vec!["mail".to_string(), "inbox".to_string()].into()),
         });
 
-        let first = state
+        let cb = state
             .tap_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty()))
             .unwrap()
             .unwrap();
-        first.call::<()>(()).unwrap();
-        assert_eq!(lua.globals().get::<String>("hit").unwrap(), "once");
 
-        let second = state
-            .tap_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty()))
-            .unwrap()
-            .unwrap();
-        second.call::<()>(()).unwrap();
-        assert_eq!(lua.globals().get::<String>("hit").unwrap(), "global");
+        cb.call::<()>(()).unwrap();
+        assert_eq!(lua.globals().get::<String>("hit").unwrap(), "exact");
     }
 
     #[test]
-    fn entry_keymap_still_overrides_once_keymap() {
+    fn wildcard_page_keymap_is_used_when_exact_has_no_matching_key() {
         let lua = Lua::new();
         let mut state = State::new();
+        state.current_path = vec!["mail".to_string(), "inbox".to_string()];
+        state.add_keymap(Keymap {
+            mode: crate::Mode::Main,
+            raw_key: "y".to_string(),
+            key_sequence: KeySequence::from("y"),
+            callback: make_callback(&lua, "exact"),
+            desc: None,
+            path: Some(vec!["mail".to_string(), "inbox".to_string()].into()),
+        });
+        state.add_keymap(Keymap {
+            mode: crate::Mode::Main,
+            raw_key: "x".to_string(),
+            key_sequence: KeySequence::from("x"),
+            callback: make_callback(&lua, "wildcard"),
+            desc: None,
+            path: Some(vec!["mail".to_string(), "*".to_string()].into()),
+        });
+
+        let cb = state
+            .tap_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty()))
+            .unwrap()
+            .unwrap();
+
+        cb.call::<()>(()).unwrap();
+        assert_eq!(lua.globals().get::<String>("hit").unwrap(), "wildcard");
+    }
+
+    #[test]
+    fn page_keymap_is_overwritten_for_same_path() {
+        let lua = Lua::new();
+        let mut state = State::new();
+        state.current_path = vec!["docker".to_string(), "container".to_string()];
+        state.add_keymap(Keymap {
+            mode: crate::Mode::Main,
+            raw_key: "x".to_string(),
+            key_sequence: KeySequence::from("x"),
+            callback: make_callback(&lua, "old"),
+            desc: None,
+            path: Some(vec!["docker".to_string(), "container".to_string()].into()),
+        });
+        state.add_keymap(Keymap {
+            mode: crate::Mode::Main,
+            raw_key: "x".to_string(),
+            key_sequence: KeySequence::from("x"),
+            callback: make_callback(&lua, "new"),
+            desc: Some("page".to_string()),
+            path: Some(vec!["docker".to_string(), "container".to_string()].into()),
+        });
+
+        let cb = state
+            .tap_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty()))
+            .unwrap()
+            .unwrap();
+
+        cb.call::<()>(()).unwrap();
+        assert_eq!(lua.globals().get::<String>("hit").unwrap(), "new");
+    }
+
+    #[test]
+    fn entry_keymap_still_overrides_page_keymap() {
+        let lua = Lua::new();
+        let mut state = State::new();
+        state.current_path = vec!["docker".to_string(), "container".to_string()];
         state.set_current_page_entries(vec![make_entry(
             &lua,
             &[("x", make_callback(&lua, "entry"))],
@@ -765,9 +847,9 @@ mod tests {
             mode: crate::Mode::Main,
             raw_key: "x".to_string(),
             key_sequence: KeySequence::from("x"),
-            callback: make_callback(&lua, "once"),
+            callback: make_callback(&lua, "page"),
             desc: None,
-            once: true,
+            path: Some(vec!["docker".to_string(), "container".to_string()].into()),
         });
 
         let keymaps = state.available_keymaps().unwrap();
@@ -775,7 +857,7 @@ mod tests {
         assert_eq!(keymaps.len(), 2);
         assert_eq!(keymaps[0].source, "entry");
         assert_eq!(keymaps[0].key, "x");
-        assert_eq!(keymaps[1].source, "once");
+        assert_eq!(keymaps[1].source, "page");
 
         let cb = state
             .tap_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty()))
@@ -1303,7 +1385,7 @@ impl State {
         self.keymap_config.retain(|v| {
             !(v.mode == keymap.mode
                 && v.key_sequence == keymap.key_sequence
-                && v.once == keymap.once)
+                && v.path == keymap.path)
         });
         self.keymap_config.push(keymap);
     }
@@ -1315,9 +1397,9 @@ impl State {
             return Ok(self.resolve_keymap_candidates(entry_cands));
         }
 
-        let once_cands = self.once_keymap_candidates();
-        if !once_cands.is_empty() {
-            return Ok(self.resolve_keymap_candidates(once_cands));
+        let page_cands = self.page_keymap_candidates();
+        if !page_cands.is_empty() {
+            return Ok(self.resolve_keymap_candidates(page_cands));
         }
 
         let global_cands = self.global_keymap_candidates();
@@ -1365,10 +1447,8 @@ impl State {
             let key_sequence = KeySequence::from(key.as_str());
             if key_sequence.prefix_match(&self.last_key_event_buffer) {
                 cands.push(ResolvedKeymap {
-                    mode: self.current_mode,
                     key_sequence,
                     callback,
-                    once: false,
                 });
             }
         }
@@ -1399,6 +1479,7 @@ impl State {
                             desc,
                             callback,
                             source: "entry",
+                            path_priority: None,
                         });
                     }
                 }
@@ -1408,24 +1489,29 @@ impl State {
         keymaps.extend(
             self.keymap_config
                 .iter()
-                .filter(|keymap| keymap.mode == self.current_mode)
+                .filter(|keymap| {
+                    keymap.mode == self.current_mode
+                        && keymap_path_matches(keymap.path.as_ref(), &self.current_path)
+                })
                 .map(|keymap| AvailableKeymap {
                     key: keymap.raw_key.clone(),
                     desc: keymap.desc.clone(),
                     callback: keymap.callback.clone(),
-                    source: if keymap.once { "once" } else { "global" },
+                    source: if keymap.path.is_some() { "page" } else { "global" },
+                    path_priority: keymap.path.as_ref().map(|path| path.priority()),
                 }),
         );
 
         keymaps.sort_by(|a, b| {
             let source_order = |source: &str| match source {
                 "entry" => 0,
-                "once" => 1,
+                "page" => 1,
                 _ => 2,
             };
 
             source_order(a.source)
                 .cmp(&source_order(b.source))
+                .then_with(|| a.path_priority.cmp(&b.path_priority))
                 .then_with(|| a.key.cmp(&b.key))
                 .then_with(|| a.desc.cmp(&b.desc))
         });
@@ -1434,30 +1520,65 @@ impl State {
     }
 
     fn global_keymap_candidates(&self) -> Vec<ResolvedKeymap> {
-        self.keymap_candidates(false)
-    }
-
-    fn once_keymap_candidates(&self) -> Vec<ResolvedKeymap> {
-        self.keymap_candidates(true)
-    }
-
-    fn keymap_candidates(&self, once: bool) -> Vec<ResolvedKeymap> {
         self.keymap_config
             .iter()
             .filter(|keymap| {
                 keymap.mode == self.current_mode
-                    && keymap.once == once
+                    && keymap.path.is_none()
                     && keymap
                         .key_sequence
                         .prefix_match(&self.last_key_event_buffer)
             })
             .map(|keymap| ResolvedKeymap {
-                mode: keymap.mode,
                 key_sequence: keymap.key_sequence.clone(),
                 callback: keymap.callback.clone(),
-                once: keymap.once,
             })
             .collect()
+    }
+
+    fn page_keymap_candidates(&self) -> Vec<ResolvedKeymap> {
+        let best_priority = self
+            .keymap_config
+            .iter()
+            .filter_map(|keymap| {
+                let path = keymap.path.as_ref()?;
+                (keymap.mode == self.current_mode
+                    && path.matches(&self.current_path)
+                    && keymap
+                        .key_sequence
+                        .prefix_match(&self.last_key_event_buffer))
+                .then(|| path.priority())
+            })
+            .min();
+
+        let Some(best_priority) = best_priority else {
+            return Vec::new();
+        };
+
+        let mut cands = Vec::new();
+        for keymap in self.keymap_config.iter().rev().filter(|keymap| {
+            keymap.mode == self.current_mode
+                && keymap
+                    .path
+                    .as_ref()
+                    .is_some_and(|path| path.matches(&self.current_path) && path.priority() == best_priority)
+                && keymap
+                    .key_sequence
+                    .prefix_match(&self.last_key_event_buffer)
+        }) {
+            if cands
+                .iter()
+                .any(|cand: &ResolvedKeymap| cand.key_sequence == keymap.key_sequence)
+            {
+                continue;
+            }
+            cands.push(ResolvedKeymap {
+                key_sequence: keymap.key_sequence.clone(),
+                callback: keymap.callback.clone(),
+            });
+        }
+        cands.reverse();
+        cands
     }
 
     fn resolve_keymap_candidates(&mut self, cands: Vec<ResolvedKeymap>) -> Option<LuaFunction> {
@@ -1470,13 +1591,6 @@ impl State {
                 let cand = cands.first().unwrap();
                 if cand.key_sequence.all_match(&self.last_key_event_buffer) {
                     let cb = cand.callback.clone();
-                    if cand.once {
-                        self.keymap_config.retain(|keymap| {
-                            !(keymap.mode == cand.mode
-                                && keymap.once
-                                && keymap.key_sequence == cand.key_sequence)
-                        });
-                    }
                     self.clear_key_buffer();
                     Some(cb)
                 } else {
@@ -1831,8 +1945,6 @@ impl State {
 }
 
 struct ResolvedKeymap {
-    mode: crate::Mode,
     key_sequence: KeySequence,
     callback: LuaFunction,
-    once: bool,
 }

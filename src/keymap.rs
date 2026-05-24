@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use mlua::prelude::*;
+use std::cmp::Reverse;
 
 use crate::Mode;
 
@@ -9,7 +10,115 @@ pub struct Keymap {
     pub key_sequence: KeySequence,
     pub callback: LuaFunction,
     pub desc: Option<String>,
-    pub once: bool,
+    pub path: Option<KeymapPathPattern>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct KeymapPathPattern {
+    raw: Vec<String>,
+    segments: Vec<PathSegmentPattern>,
+    priority: KeymapPathPriority,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum PathSegmentPattern {
+    Exact(String),
+    Star,
+    GlobStar,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct KeymapPathPriority {
+    globstar_count: usize,
+    star_count: usize,
+    exact_count: Reverse<usize>,
+    len: Reverse<usize>,
+}
+
+impl KeymapPathPattern {
+    pub fn new(raw: Vec<String>) -> Self {
+        Self::from_segments(raw)
+    }
+
+    pub fn from_path_str(raw: &str) -> Self {
+        let segments = raw
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .map(|segment| segment.to_string())
+            .collect();
+        Self::from_segments(segments)
+    }
+
+    fn from_segments(raw: Vec<String>) -> Self {
+        let mut exact_count = 0;
+        let mut star_count = 0;
+        let mut globstar_count = 0;
+        let segments = raw
+            .iter()
+            .map(|segment| match segment.as_str() {
+                "*" => {
+                    star_count += 1;
+                    PathSegmentPattern::Star
+                }
+                "**" => {
+                    globstar_count += 1;
+                    PathSegmentPattern::GlobStar
+                }
+                _ => {
+                    exact_count += 1;
+                    PathSegmentPattern::Exact(segment.clone())
+                }
+            })
+            .collect();
+
+        Self {
+            priority: KeymapPathPriority {
+                globstar_count,
+                star_count,
+                exact_count: Reverse(exact_count),
+                len: Reverse(raw.len()),
+            },
+            raw,
+            segments,
+        }
+    }
+
+    pub fn raw(&self) -> &[String] {
+        &self.raw
+    }
+
+    pub fn priority(&self) -> KeymapPathPriority {
+        self.priority
+    }
+
+    pub fn matches(&self, path: &[String]) -> bool {
+        self.matches_from(0, 0, path)
+    }
+
+    fn matches_from(&self, pattern_idx: usize, path_idx: usize, path: &[String]) -> bool {
+        if pattern_idx == self.segments.len() {
+            return path_idx == path.len();
+        }
+
+        match &self.segments[pattern_idx] {
+            PathSegmentPattern::Exact(segment) => {
+                path.get(path_idx) == Some(segment)
+                    && self.matches_from(pattern_idx + 1, path_idx + 1, path)
+            }
+            PathSegmentPattern::Star => {
+                path_idx < path.len() && self.matches_from(pattern_idx + 1, path_idx + 1, path)
+            }
+            PathSegmentPattern::GlobStar => {
+                (path_idx..=path.len()).any(|idx| self.matches_from(pattern_idx + 1, idx, path))
+            }
+        }
+    }
+}
+
+impl From<Vec<String>> for KeymapPathPattern {
+    fn from(raw: Vec<String>) -> Self {
+        Self::new(raw)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -271,5 +380,34 @@ mod tests {
         let keyseq = KeySequence::from("<enter>");
         assert_eq!(keyseq.0.len(), 1);
         assert_eq!(keyseq.0[0].code, KeyCode::Enter);
+    }
+
+    #[test]
+    fn path_pattern_star_matches_one_segment() {
+        let pattern = KeymapPathPattern::new(vec!["mail".into(), "*".into()]);
+
+        assert!(pattern.matches(&["mail".into(), "inbox".into()]));
+        assert!(!pattern.matches(&["mail".into()]));
+        assert!(!pattern.matches(&["mail".into(), "inbox".into(), "thread".into()]));
+    }
+
+    #[test]
+    fn path_pattern_globstar_matches_zero_or_more_segments() {
+        let pattern = KeymapPathPattern::new(vec!["mail".into(), "**".into()]);
+
+        assert!(pattern.matches(&["mail".into()]));
+        assert!(pattern.matches(&["mail".into(), "inbox".into()]));
+        assert!(pattern.matches(&["mail".into(), "inbox".into(), "thread".into()]));
+        assert!(!pattern.matches(&["docker".into(), "inbox".into()]));
+    }
+
+    #[test]
+    fn path_pattern_priority_prefers_more_specific_patterns() {
+        let exact = KeymapPathPattern::new(vec!["mail".into(), "inbox".into()]);
+        let star = KeymapPathPattern::new(vec!["mail".into(), "*".into()]);
+        let globstar = KeymapPathPattern::new(vec!["mail".into(), "**".into()]);
+
+        assert!(exact.priority() < star.priority());
+        assert!(star.priority() < globstar.priority());
     }
 }
