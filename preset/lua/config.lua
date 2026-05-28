@@ -36,6 +36,7 @@ local cfg = {
     max_width = 40,
     max_height = 10,
   },
+  plugin_sort = 'defined',
 }
 
 local function append_package_path(paths, path, seen)
@@ -100,6 +101,7 @@ local function rebuild_plugin_index()
 end
 
 local PLUGIN_META_CACHE_NS = 'lazydeck.plugin.meta'
+local PLUGIN_USAGE_CACHE_NS = 'lazydeck.plugin.usage'
 local DEFAULT_PLUGIN_ICON = '󰏗'
 
 local function plugin_status(spec)
@@ -167,6 +169,73 @@ local function plugin_cached_meta(name)
   return ensure_plugin_meta(name)
 end
 
+local function normalize_plugin_usage(usage)
+  if type(usage) ~= 'table' then usage = {} end
+  local count = tonumber(usage.count) or 0
+  local last_used = tonumber(usage.last_used) or 0
+  return {
+    count = count,
+    last_used = last_used,
+  }
+end
+
+local function plugin_usage(name)
+  return normalize_plugin_usage(deck.cache.get(PLUGIN_USAGE_CACHE_NS, name))
+end
+
+local function touch_plugin_usage(name)
+  local usage = plugin_usage(name)
+  usage.count = usage.count + 1
+  usage.last_used = deck.time.now()
+  deck.cache.set(PLUGIN_USAGE_CACHE_NS, name, usage)
+  return usage
+end
+
+local function plugin_sort_mode()
+  local mode = cfg.plugin_sort or cfg.root_plugin_sort or cfg.root_sort or 'defined'
+  if mode == 'recent' or mode == 'recently_used' or mode == 'last_used' then return 'recent' end
+  if mode == 'most' or mode == 'most_used' or mode == 'usage' or mode == 'count' then return 'most' end
+  return 'defined'
+end
+
+local function sorted_root_plugin_specs()
+  local items = {}
+  for index, spec in ipairs(runtime.explicit_plugin_specs) do
+    table.insert(items, {
+      spec = spec,
+      index = index,
+      usage = plugin_usage(spec.name),
+      startup = spec.lazy == false,
+    })
+  end
+
+  local mode = plugin_sort_mode()
+  table.sort(items, function(a, b)
+    if mode ~= 'defined' then
+      -- startup plugins (lazy=false) are already loaded in the background;
+      -- keep them after interactive/lazy plugins when sorting by usage.
+      if a.startup ~= b.startup then return not a.startup end
+    end
+
+    if mode == 'recent' and a.usage.last_used ~= b.usage.last_used then
+      return a.usage.last_used > b.usage.last_used
+    end
+
+    if mode == 'most' then
+      if a.usage.count ~= b.usage.count then return a.usage.count > b.usage.count end
+      if a.usage.last_used ~= b.usage.last_used then return a.usage.last_used > b.usage.last_used end
+    end
+
+    return a.index < b.index
+  end)
+
+  local result = {}
+  for _, item in ipairs(items) do
+    table.insert(result, item.spec)
+  end
+  return result
+end
+
 local function plugin_display(spec, meta)
   local status = plugin_status(spec)
   local name_color = status == 'missing' and 'yellow' or 'white'
@@ -181,8 +250,9 @@ end
 local function list_root_plugins(cb)
   local entries = {}
   local lines = {}
-  for _, spec in ipairs(runtime.explicit_plugin_specs) do
+  for _, spec in ipairs(sorted_root_plugin_specs()) do
     local meta = plugin_cached_meta(spec.name)
+    local usage = plugin_usage(spec.name)
     local display = plugin_display(spec, meta)
     table.insert(lines, display)
     table.insert(entries, {
@@ -195,6 +265,8 @@ local function list_root_plugins(cb)
       icon = meta.icon,
       desc = meta.desc,
       color = meta.color,
+      usage_count = usage.count,
+      last_used = usage.last_used,
       display = display,
       bottom_line = meta.desc ~= '' and meta.desc or nil,
       preview = function(self, preview_cb) deck._manager.preview(self, preview_cb) end,
@@ -204,22 +276,24 @@ local function list_root_plugins(cb)
   cb(entries)
 end
 
-local function ensure_plugin(name)
+local function ensure_plugin(name, opts)
   local plugin, spec_or_err = load_plugin(name)
   if not plugin then return nil, spec_or_err end
   local spec = spec_or_err
 
+  opts = opts or {}
   if not runtime.configured_plugins[name] then
     local ok_config, config_err = pcall(spec.config)
     if not ok_config then return nil, config_err end
     cache_plugin_meta(name, plugin)
     runtime.configured_plugins[name] = true
+    if opts.record_usage then touch_plugin_usage(name) end
   end
 
   return runtime.loaded_plugins[name]
 end
 
-local function setup_plugin(name) return ensure_plugin(name) end
+local function setup_plugin(name) return ensure_plugin(name, { record_usage = true }) end
 
 local function guarded_preview_callback(hovered_path)
   return function(preview) deck.api.set_preview(hovered_path, preview) end
@@ -338,7 +412,7 @@ end
 local function load_startup_plugins()
   for _, spec in ipairs(runtime.explicit_plugin_specs or {}) do
     if spec.lazy == false then
-      local _, err = ensure_plugin(spec.name)
+      local _, err = ensure_plugin(spec.name, { record_usage = true })
       if err then
         deck.log('error', 'Failed to load startup plugin {}: {}', spec.name, tostring(err))
         deck.notify(tostring(err))
@@ -408,7 +482,7 @@ function config.setup(opt)
       return
     end
 
-    local plugin, err = ensure_plugin(path[1])
+    local plugin, err = ensure_plugin(path[1], { record_usage = true })
     if not plugin then
       deck.notify(tostring(err))
       deck.api.set_entries(nil, {})

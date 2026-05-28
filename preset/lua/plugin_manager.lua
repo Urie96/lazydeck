@@ -327,7 +327,7 @@ end
 --- @param callback function|nil Called with (boolean success)
 function pm.update(spec, callback)
   if not spec.is_remote then
-    if callback then callback(false) end
+    if callback then callback(false, false) end
     return
   end
 
@@ -337,64 +337,81 @@ function pm.update(spec, callback)
       deck.style.span('⊘ '):fg('yellow'),
       deck.style.span(spec.name .. ' is pinned to commit ' .. spec.commit:sub(1, 7)),
     }))
-    if callback then callback(false) end
+    if callback then callback(false, false) end
     return
   end
 
   if not pm.is_installed(spec) then
-    -- Not installed yet, install instead
-    pm.install(spec, callback)
+    -- Not installed yet, install instead; treat a successful install as changed.
+    pm.install(spec, function(success)
+      if callback then callback(success, success) end
+    end)
     return
   end
 
   local install_path = spec.install_path
 
-  -- git fetch
-  git({ 'git', '-C', install_path, 'fetch', '--tags', '--force' }, function(out)
-    if out.code ~= 0 then
-      local err = explain_git_error(out.stderr)
-      deck.log('error', 'Failed to fetch {}: {}', spec.name, err)
-      deck.notify(deck.style.line({
-        deck.style.span('✗ '):fg('red'),
-        deck.style.span('Failed to fetch ' .. spec.name .. ': ' .. err),
-      }))
-      if callback then callback(false) end
-      return
-    end
+  local function current_head(cb)
+    git({ 'git', '-C', install_path, 'rev-parse', 'HEAD' }, function(out)
+      if out.code == 0 then
+        cb(out.stdout:trim())
+      else
+        cb(nil)
+      end
+    end)
+  end
 
-    local function on_done(out2)
-      if out2.code ~= 0 then
-        local err = explain_git_error(out2.stderr)
-        deck.log('error', 'Failed to update {}: {}', spec.name, err)
+  current_head(function(before_commit)
+    -- git fetch
+    git({ 'git', '-C', install_path, 'fetch', '--tags', '--force' }, function(out)
+      if out.code ~= 0 then
+        local err = explain_git_error(out.stderr)
+        deck.log('error', 'Failed to fetch {}: {}', spec.name, err)
         deck.notify(deck.style.line({
           deck.style.span('✗ '):fg('red'),
-          deck.style.span('Failed to update ' .. spec.name .. ': ' .. err),
+          deck.style.span('Failed to fetch ' .. spec.name .. ': ' .. err),
         }))
-        if callback then callback(false) end
-      else
-        if callback then callback(true) end
+        if callback then callback(false, false) end
+        return
       end
-    end
 
-    if spec.tag then
-      -- Tag constraint: checkout the tag (tracks the exact commit the tag points to)
-      git({ 'git', '-C', install_path, 'checkout', 'tags/' .. spec.tag }, on_done)
-    elseif spec.branch then
-      -- Branch constraint: reset to the latest of that branch
-      git({ 'git', '-C', install_path, 'reset', '--hard', 'origin/' .. spec.branch }, on_done)
-    else
-      -- No constraint: reset to default remote branch
-      -- First, determine the default remote branch
-      git({ 'git', '-C', install_path, 'symbolic-ref', 'refs/remotes/origin/HEAD' }, function(ref_out)
-        local default_ref = 'origin/HEAD'
-        if ref_out.code == 0 then
-          -- Extract branch name from refs/remotes/origin/main -> origin/main
-          local ref = ref_out.stdout:trim()
-          default_ref = ref:gsub('^refs/remotes/', '')
+      local function on_done(out2)
+        if out2.code ~= 0 then
+          local err = explain_git_error(out2.stderr)
+          deck.log('error', 'Failed to update {}: {}', spec.name, err)
+          deck.notify(deck.style.line({
+            deck.style.span('✗ '):fg('red'),
+            deck.style.span('Failed to update ' .. spec.name .. ': ' .. err),
+          }))
+          if callback then callback(false, false) end
+        else
+          current_head(function(after_commit)
+            local changed = before_commit == nil or after_commit == nil or before_commit ~= after_commit
+            if callback then callback(true, changed) end
+          end)
         end
-        git({ 'git', '-C', install_path, 'reset', '--hard', default_ref }, on_done)
-      end)
-    end
+      end
+
+      if spec.tag then
+        -- Tag constraint: checkout the tag (tracks the exact commit the tag points to)
+        git({ 'git', '-C', install_path, 'checkout', 'tags/' .. spec.tag }, on_done)
+      elseif spec.branch then
+        -- Branch constraint: reset to the latest of that branch
+        git({ 'git', '-C', install_path, 'reset', '--hard', 'origin/' .. spec.branch }, on_done)
+      else
+        -- No constraint: reset to default remote branch
+        -- First, determine the default remote branch
+        git({ 'git', '-C', install_path, 'symbolic-ref', 'refs/remotes/origin/HEAD' }, function(ref_out)
+          local default_ref = 'origin/HEAD'
+          if ref_out.code == 0 then
+            -- Extract branch name from refs/remotes/origin/main -> origin/main
+            local ref = ref_out.stdout:trim()
+            default_ref = ref:gsub('^refs/remotes/', '')
+          end
+          git({ 'git', '-C', install_path, 'reset', '--hard', default_ref }, on_done)
+        end)
+      end
+    end)
   end)
 end
 
@@ -618,22 +635,25 @@ function pm.update_all(plugins, callback)
   local completed = 0
   local total = #remote
   local successful = {}
+  local changed_plugins = {}
 
-  deck.notify(deck.style.line({
-    deck.style.span('⟳ '):fg('cyan'),
-    deck.style.span('Updating ' .. total .. ' plugin(s) in parallel...'),
-  }))
-
-  local function on_one_done(spec, success)
+  local function on_one_done(spec, success, changed)
     completed = completed + 1
-    if success then updated = updated + 1 end
     if success then successful[#successful + 1] = spec end
+    if success and changed then
+      updated = updated + 1
+      changed_plugins[#changed_plugins + 1] = spec.name
+    end
 
     if completed >= total then
       pm.update_lock_for_plugins(successful, function()
+        local message = 'Updated ' .. updated .. ' plugin(s)'
+        if #changed_plugins > 0 then
+          message = message .. ': ' .. table.concat(changed_plugins, ', ')
+        end
         deck.notify(deck.style.line({
           deck.style.span('✓ '):fg('green'),
-          deck.style.span('Updated ' .. updated .. '/' .. total .. ' plugin(s)'),
+          deck.style.span(message),
         }))
         if callback then callback() end
       end)
@@ -641,8 +661,8 @@ function pm.update_all(plugins, callback)
   end
 
   for _, spec in ipairs(remote) do
-    pm.update(spec, function(success)
-      on_one_done(spec, success)
+    pm.update(spec, function(success, changed)
+      on_one_done(spec, success, changed)
     end)
   end
 end

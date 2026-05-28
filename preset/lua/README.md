@@ -92,8 +92,8 @@ deck.cache.clear(namespace)              -- 清空指定 namespace 的缓存
 系统剪贴板访问封装：
 
 ```lua
-deck.clipboard.get()         -- 获取剪贴板内容
-deck.clipboard.set(text)     -- 设置剪贴板内容
+deck.clipboard.get()         -- 获取剪贴板内容；通过 pbpaste/wl-paste/xclip/xsel/PowerShell/Termux 等命令读取
+deck.clipboard.set(text)     -- 设置剪贴板内容；通过 OSC 52 写入终端剪贴板
 ```
 
 ### base64.lua - Base64 编解码
@@ -226,13 +226,21 @@ deck.url.decode("hello%20world") -- "hello world"
 应用启动时执行的默认初始化：
 
 - 根据 `plugins` 配置把本地 `dir` 和远程安装目录加入 `package.path`
-- 根路径 `/` 固定展示所有已配置插件，并从 `deck.cache` 读取插件 `icon` / `desc` 元信息用于展示
-- 进入 `/plugin_name/...` 时懒加载该插件并执行其 `config/setup`
+- 根路径 `/` 固定展示所有已配置插件，并从 `deck.cache` 读取插件 `icon` / `desc` 元信息用于展示；可通过 `deck.config { plugin_sort = 'defined' | 'recent' | 'most_used' }` 配置排序（默认按定义顺序，`recent` 按最近使用，`most_used` 按最多使用）；使用 `recent` / `most_used` 时，`lazy = false` 的启动插件固定排在最后，`defined` 不会调整顺序
+- 进入 `/plugin_name/...` 时懒加载该插件并执行其 `config/setup`，并通过 `deck.cache` 更新 `lazydeck.plugin.usage` namespace 下的 `count` 和 `last_used`，供根页面排序和插件预览区统计展示使用
 - 插件 spec 可设置 `lazy = false`，在 `deck.config` 调用时立即加载并执行 `config/setup`，适合通知历史等需要启动即初始化的插件
 - 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；根路径展示插件时如果缓存不存在，会尝试加载插件并缓存 meta；插件不存在/`require` 失败时不写缓存，插件存在但未实现 `meta()` 时缓存空 meta 到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
 - 加载用户配置（默认 `require 'init'`，也支持通过 `LAZYDECK_CONFIG_FILE` 指定单个配置文件）
 - 实现 `deck._list()` 和 `deck._preview()` 入口函数
+
+根页面插件排序配置：
+
+```lua
+deck.config {
+  plugin_sort = 'defined', -- 'defined' | 'recent' | 'most_used'
+}
+```
 
 默认配置中的 `keymap` 字段：
 

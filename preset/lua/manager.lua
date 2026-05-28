@@ -4,6 +4,26 @@
 local M = {}
 local pm -- will be set to deck._pm
 
+local PLUGIN_USAGE_CACHE_NS = 'lazydeck.plugin.usage'
+
+local function normalize_plugin_usage(usage)
+  if type(usage) ~= 'table' then usage = {} end
+  return {
+    count = tonumber(usage.count) or 0,
+    last_used = tonumber(usage.last_used) or 0,
+  }
+end
+
+local function plugin_usage(name)
+  return normalize_plugin_usage(deck.cache.get(PLUGIN_USAGE_CACHE_NS, name))
+end
+
+local function format_last_used(ts)
+  ts = tonumber(ts) or 0
+  if ts <= 0 then return 'never' end
+  return deck.time.format(ts, 'relative')
+end
+
 --- Setup the plugin manager UI with keybindings.
 --- @param plugins table Array of plugin spec tables from user config
 function M.setup(plugins)
@@ -184,6 +204,9 @@ function M.preview(entry, cb)
 
   local lock = pm.read_lock()
   local lock_entry = lock[spec.name]
+  local usage = plugin_usage(spec.name)
+  if entry.usage_count ~= nil then usage.count = tonumber(entry.usage_count) or usage.count end
+  if entry.last_used ~= nil then usage.last_used = tonumber(entry.last_used) or usage.last_used end
 
   -- Helper: build the preview lines array as LuaLine objects
   local function build_lines(extra_lines)
@@ -228,6 +251,21 @@ function M.preview(entry, cb)
       deck.style.line {
         deck.style.span('Status: '):fg 'cyan',
         deck.style.span(entry.status):fg(status_color),
+      }
+    )
+    table.insert(
+      lines,
+      deck.style.line {
+        deck.style.span('Usage:  '):fg 'cyan',
+        deck.style.span(tostring(usage.count)):fg 'white',
+        deck.style.span(' time(s)'):fg 'gray',
+      }
+    )
+    table.insert(
+      lines,
+      deck.style.line {
+        deck.style.span('Recent: '):fg 'cyan',
+        deck.style.span(format_last_used(usage.last_used)):fg(usage.last_used > 0 and 'white' or 'gray'),
       }
     )
 

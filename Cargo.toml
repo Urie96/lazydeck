@@ -40,4 +40,3 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 reqwest = { version = "0.12", features = ["json"] }
-arboard = { version = "3.6.1", default-features = false }

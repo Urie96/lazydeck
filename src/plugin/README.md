@@ -341,7 +341,7 @@ deck.keymap.set('main', 'r', function() mark_mail_read() end, { path = '/mail/*'
 - `opt.path` 支持 `0`、`string` 或 `string[]`：`0` 表示当前 page 路径；字符串会按 `/` 拆成 path pattern；数组表示指定 page 路径 pattern；`"*"` 匹配单个 segment，`"**"` 匹配零个或多个 segment；重复调用同一路径 pattern 会覆盖旧的 page keymap
 - 其余默认动作通过 `preset/lua/config.lua` 用 `deck.keymap.set('input', ...)` 注册到内部命令或 Lua 回调，例如 `input_submit`、`input_cancel`；默认 `<C-g>` 通过 `deck.system.edit(...)` 调用外部编辑器编辑当前输入内容
 
-`deck.config` 还支持 `keymap` 字段来覆盖内置主模式键位，例如：
+`deck.config` 还支持 `keymap` 字段来覆盖内置主模式键位，并支持 `plugin_sort` 配置根页面插件排序，例如：
 
 ```lua
 deck.config {
@@ -350,8 +350,11 @@ deck.config {
     filter = '/',
     quit = 'q',
   },
+  plugin_sort = 'defined', -- 'defined' | 'recent' | 'most_used'
 }
 ```
+
+`plugin_sort` 默认为 `defined`，即按 `deck.config.plugins` 定义顺序展示；`recent` 按最近使用时间排序；`most_used` 按使用次数排序。使用 `recent` / `most_used` 时，`lazy = false` 的启动插件会固定排在根页面最后；`defined` 不会调整顺序。每次真正加载插件时会通过 `deck.cache` 更新 `lazydeck.plugin.usage` namespace 下的使用次数和最近使用时间，插件预览区会展示这些统计信息。
 
 支持的键位名包括 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`history_back`、`history_forward`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`，以及 `input_submit`、`input_cancel`、`input_clear_before_cursor`、`input_cursor_to_start`、`input_cursor_to_end`、`input_external_editor`。每次调用 `deck.config` 都会按这些配置重新执行一遍 `deck.keymap.set`。
 

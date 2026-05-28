@@ -2,7 +2,7 @@
 -- clipboard.lua
 --
 -- System clipboard access via deck.clipboard.get() and deck.clipboard.set()
--- Implemented in Rust (arboard crate)
+-- set uses OSC 52; get shells out to available platform clipboard commands
 --
 
 ---@class deck.clipboard

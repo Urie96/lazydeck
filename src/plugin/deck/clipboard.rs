@@ -1,99 +1,123 @@
+use ::base64::engine::general_purpose;
+use ::base64::Engine;
 use mlua::prelude::*;
-
-#[cfg(target_os = "android")]
+use std::io::{self, Write};
 use std::process::Command;
 
-#[cfg(target_os = "android")]
-fn termux_clipboard_get() -> mlua::Result<String> {
-    let output = Command::new("termux-clipboard-get")
-        .output()
-        .map_err(|e| {
-            LuaError::RuntimeError(format!(
-                "Failed to run termux-clipboard-get: {}. Install Termux:API and run `pkg install termux-api`.",
-                e
-            ))
-        })?;
-
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        Err(LuaError::RuntimeError(format!(
-            "termux-clipboard-get failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )))
-    }
+struct ClipboardCommand {
+    program: &'static str,
+    args: &'static [&'static str],
 }
 
-#[cfg(target_os = "android")]
-fn termux_clipboard_set(text: &str) -> mlua::Result<()> {
-    let status = Command::new("termux-clipboard-set")
-        .arg(text)
-        .status()
-        .map_err(|e| {
-            LuaError::RuntimeError(format!(
-                "Failed to run termux-clipboard-set: {}. Install Termux:API and run `pkg install termux-api`.",
-                e
-            ))
-        })?;
+const CLIPBOARD_GET_COMMANDS: &[ClipboardCommand] = &[
+    ClipboardCommand {
+        program: "termux-clipboard-get",
+        args: &[],
+    },
+    ClipboardCommand {
+        program: "pbpaste",
+        args: &[],
+    },
+    ClipboardCommand {
+        program: "wl-paste",
+        args: &["--no-newline"],
+    },
+    ClipboardCommand {
+        program: "xclip",
+        args: &["-selection", "clipboard", "-out"],
+    },
+    ClipboardCommand {
+        program: "xsel",
+        args: &["--clipboard", "--output"],
+    },
+    ClipboardCommand {
+        program: "powershell.exe",
+        args: &["-NoProfile", "-Command", "Get-Clipboard -Raw"],
+    },
+    ClipboardCommand {
+        program: "powershell",
+        args: &["-NoProfile", "-Command", "Get-Clipboard -Raw"],
+    },
+    ClipboardCommand {
+        program: "pwsh",
+        args: &["-NoProfile", "-Command", "Get-Clipboard -Raw"],
+    },
+];
 
-    if status.success() {
-        Ok(())
-    } else {
-        Err(LuaError::RuntimeError(format!(
-            "termux-clipboard-set failed with status: {}",
-            status
-        )))
-    }
+fn command_exists(program: &str) -> bool {
+    which::which(program).is_ok()
 }
 
-#[cfg(not(target_os = "android"))]
 fn platform_clipboard_get() -> mlua::Result<String> {
-    use arboard::Clipboard;
+    let mut failures = Vec::new();
+    let mut tried = Vec::new();
 
-    let mut clipboard = Clipboard::new()
-        .map_err(|e| LuaError::RuntimeError(format!("Failed to access clipboard: {}", e)))?;
+    for command in CLIPBOARD_GET_COMMANDS {
+        if !command_exists(command.program) {
+            continue;
+        }
 
-    clipboard
-        .get_text()
-        .map_err(|e| LuaError::RuntimeError(format!("Failed to get clipboard content: {}", e)))
+        tried.push(command.program);
+        match Command::new(command.program).args(command.args).output() {
+            Ok(output) if output.status.success() => {
+                return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                if stderr.is_empty() {
+                    failures.push(format!("{} exited with {}", command.program, output.status));
+                } else {
+                    failures.push(format!(
+                        "{} exited with {}: {}",
+                        command.program, output.status, stderr
+                    ));
+                }
+            }
+            Err(err) => {
+                failures.push(format!("{} failed to run: {}", command.program, err));
+            }
+        }
+    }
+
+    if tried.is_empty() {
+        return Err(LuaError::RuntimeError(format!(
+            "Failed to get clipboard content: no clipboard command available (tried: {})",
+            CLIPBOARD_GET_COMMANDS
+                .iter()
+                .map(|command| command.program)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )));
+    }
+
+    Err(LuaError::RuntimeError(format!(
+        "Failed to get clipboard content: {}",
+        failures.join("; ")
+    )))
 }
 
-#[cfg(not(target_os = "android"))]
-fn platform_clipboard_set(text: &str) -> mlua::Result<()> {
-    use arboard::Clipboard;
+fn osc52_clipboard_set(text: &str) -> mlua::Result<()> {
+    let encoded = general_purpose::STANDARD.encode(text);
+    let osc_sequence = format!("\x1b]52;c;{}\x07", encoded);
 
-    let mut clipboard = Clipboard::new()
-        .map_err(|e| LuaError::RuntimeError(format!("Failed to access clipboard: {}", e)))?;
+    io::stdout()
+        .write_all(osc_sequence.as_bytes())
+        .map_err(|e| LuaError::RuntimeError(format!("Failed to write OSC 52 sequence: {}", e)))?;
+    io::stdout()
+        .flush()
+        .map_err(|e| LuaError::RuntimeError(format!("Failed to flush stdout: {}", e)))?;
 
-    clipboard
-        .set_text(text)
-        .map_err(|e| LuaError::RuntimeError(format!("Failed to set clipboard content: {}", e)))
+    Ok(())
 }
 
 /// Get clipboard content
 fn get(_lua: &Lua, _: ()) -> mlua::Result<String> {
-    #[cfg(target_os = "android")]
-    {
-        termux_clipboard_get()
-    }
-
-    #[cfg(not(target_os = "android"))]
-    {
-        platform_clipboard_get()
-    }
+    platform_clipboard_get()
 }
 
 /// Set clipboard content
 fn set(_lua: &Lua, text: String) -> mlua::Result<()> {
-    #[cfg(target_os = "android")]
-    {
-        termux_clipboard_set(&text)
-    }
-
-    #[cfg(not(target_os = "android"))]
-    {
-        platform_clipboard_set(&text)
-    }
+    osc52_clipboard_set(&text)
 }
 
 /// Create the deck.clipboard table

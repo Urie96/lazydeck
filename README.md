@@ -221,6 +221,8 @@ deck.config {
     filter = '/',
     quit = 'q',
   },
+  -- 根页面插件排序：'defined'（配置顺序，默认）、'recent'（最近使用）、'most_used'（最多使用）
+  plugin_sort = 'defined',
   plugins = {
     -- 远程插件字符串语法
     'owner/process.lazydeck',
@@ -288,6 +290,8 @@ deck.config {
 ```
 
 `keymap` 用于覆盖内置主模式快捷键。支持的字段有 `up`、`down`、`top`、`bottom`、`preview_up`、`preview_down`、`reload`、`quit`、`force_quit`、`filter`、`clear_filter`、`back`、`open`、`enter`。每次调用 `deck.config` 都会按当前 `keymap` 配置重新执行一遍 `deck.keymap.set(...)`。
+
+`plugin_sort` 用于配置根页面 `/` 的插件排序方式：`defined` 按 `deck.config.plugins` 定义顺序（默认），`recent` 按最近使用时间降序，`most_used` 按使用次数降序（次数相同时按最近使用时间）。使用 `recent` / `most_used` 时，`lazy = false` 的启动插件会固定排在根页面最后；`defined` 不会调整顺序。lazydeck 每次真正加载插件时会通过 `deck.cache` 更新 `lazydeck.plugin.usage` namespace 下的 `count` 和 `last_used`，插件预览区会展示使用次数和最近使用时间。
 
 插件 spec 可配置 `keys` 字段注册全局快捷键。`keys` 是数组，元素格式为 `{ key, callback, desc = ... }`；按下快捷键时会先执行对应插件的 `setup/config`（即懒加载插件），再调用 `callback`。
 
