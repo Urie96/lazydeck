@@ -126,6 +126,23 @@ fn resolve_config_path(path: &PathBuf) -> PathBuf {
     }
 }
 
+fn default_config_path() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config/lazydeck/init.lua"))
+}
+
+fn print_missing_config_help(config_file: &std::path::Path, explicit: bool) {
+    let source = if explicit {
+        "specified config file"
+    } else {
+        "default config file"
+    };
+
+    println!(
+        "{APP_NAME} needs a Lua config before it can start.\n\nMissing {source}:\n  {path}\n\nCreate it with at least:\n\n  deck.config {{\n    plugins = {{}},\n  }}\n\nOr run with a different config file or directory:\n  {APP_NAME} --config /path/to/init.lua\n  {APP_NAME} --config /path/to/config-dir\n\nUse '{APP_NAME} --help' for command-line options.",
+        path = config_file.display(),
+    );
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     log::Logs::start()?;
@@ -134,12 +151,22 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     };
 
-    if let Some(config_path) = cli.config_path.as_ref() {
-        let config_file = resolve_config_path(config_path);
-        std::env::set_var("LAZYDECK_CONFIG_FILE", &config_file);
-        if let Some(dir) = config_file.parent() {
-            std::env::set_var("LAZYDECK_CONFIG_BASE_DIR", dir);
-        }
+    let config_file = if let Some(config_path) = cli.config_path.as_ref() {
+        resolve_config_path(config_path)
+    } else if let Some(config_file) = default_config_path() {
+        config_file
+    } else {
+        anyhow::bail!("HOME is not set; use --config to specify a lazydeck config file");
+    };
+
+    if !config_file.is_file() {
+        print_missing_config_help(&config_file, cli.config_path.is_some());
+        return Ok(());
+    }
+
+    std::env::set_var("LAZYDECK_CONFIG_FILE", &config_file);
+    if let Some(dir) = config_file.parent() {
+        std::env::set_var("LAZYDECK_CONFIG_BASE_DIR", dir);
     }
 
     let local = task::LocalSet::new();

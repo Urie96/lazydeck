@@ -17,7 +17,7 @@ preset/lua/
 ├── html.lua          # HTML 解析 API 封装
 ├── http.lua          # HTTP API 封装
 ├── http_server.lua   # 本地 HTTP 服务封装
-├── init.lua          # 初始化脚本（默认配置和键盘映射）
+├── config.lua        # 初始化脚本（默认配置和键盘映射）
 ├── inspect.lua       # 调试工具（表结构可视化）
 ├── interactive.lua   # 交互式命令封装
 ├── json.lua          # JSON 编解码
@@ -221,9 +221,9 @@ deck.url.encode("hello world")  -- "hello%20world"
 deck.url.decode("hello%20world") -- "hello world"
 ```
 
-### init.lua - 初始化脚本
+### config.lua - 初始化脚本
 
-应用启动时执行的默认初始化：
+应用启动时执行的内置初始化：
 
 - 根据 `plugins` 配置把本地 `dir` 和远程安装目录加入 `package.path`
 - 根路径 `/` 固定展示所有已配置插件，并从 `deck.cache` 读取插件 `icon` / `desc` 元信息用于展示；可通过 `deck.config { plugin_sort = 'defined' | 'recent' | 'most_used' }` 配置排序（默认按定义顺序，`recent` 按最近使用，`most_used` 按最多使用）；使用 `recent` / `most_used` 时，`lazy = false` 的启动插件固定排在最后，`defined` 不会调整顺序
@@ -231,7 +231,7 @@ deck.url.decode("hello%20world") -- "hello world"
 - 插件 spec 可设置 `lazy = false`，在 `deck.config` 调用时立即加载并执行 `config/setup`，适合通知历史等需要启动即初始化的插件
 - 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；根路径展示插件时如果缓存不存在，会尝试加载插件并缓存 meta；插件不存在/`require` 失败时不写缓存，插件存在但未实现 `meta()` 时缓存空 meta 到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
-- 加载用户配置（默认 `require 'init'`，也支持通过 `LAZYDECK_CONFIG_FILE` 指定单个配置文件）
+- 加载用户配置：默认加载 `~/.config/lazydeck/init.lua`；文件不存在时 Rust 入口会先打印配置提示并退出，也支持通过 `LAZYDECK_CONFIG_FILE` 指定单个配置文件
 - 实现 `deck._list()` 和 `deck._preview()` 入口函数
 
 根页面插件排序配置：
@@ -388,7 +388,7 @@ deck.config {
 }
 ```
 
-插件 spec 也支持 `keys` 字段注册懒加载全局快捷键：
+插件 spec 也支持 `keys` 字段注册懒加载页面快捷键：
 
 ```lua
 deck.config {
@@ -403,7 +403,7 @@ deck.config {
 }
 ```
 
-`keys` 是数组，元素格式为 `{ key, callback, desc = ... }`。按下对应按键时，lazydeck 会先加载该插件并执行其 `config/setup`，然后调用配置的函数。
+`keys` 是数组，元素格式为 `{ key, callback, desc = ..., path = ... }`。默认绑定到该插件页面及其子页面；也可以通过 `path` 指定页面 pattern。按下对应按键时，lazydeck 会先加载该插件并执行其 `config/setup`，然后调用配置的函数。
 
 通过 `:` 打开的命令输入框可以执行内部命令，例如：
 

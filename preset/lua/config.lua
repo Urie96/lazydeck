@@ -430,12 +430,14 @@ local function register_plugin_keymaps()
           local key = item[1]
           local callback = item[2]
           local desc = item.desc
+          local path = item.path
 
           if type(key) == 'string' and type(callback) == 'function' then
             local plugin_name = spec.name
             local key_name = key
             local action_callback = callback
             local action_desc = desc
+            local action_path = path or { plugin_name, '**' }
             deck.keymap.set('main', key_name, function()
               local plugin, err = deck.plugin.load(plugin_name)
               if not plugin then
@@ -448,6 +450,7 @@ local function register_plugin_keymaps()
                 deck.notify(call_err)
               end
             end, {
+              path = action_path,
               desc = action_desc or (plugin_name .. ' · ' .. key_name),
             })
           end

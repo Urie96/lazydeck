@@ -11,6 +11,7 @@ local keymap = {}
 ---@field [1] string Key sequence
 ---@field [2] fun() Callback to run after the plugin has been loaded
 ---@field desc? string Human readable description for help panels
+---@field path? 0|string|string[] Page path pattern; defaults to the plugin page pattern when used in a plugin spec
 
 ---@class deck.ConfigKeymap
 ---@field up? string

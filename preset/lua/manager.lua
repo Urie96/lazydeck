@@ -32,6 +32,8 @@ function M.setup(plugins)
 
   M._update_status = {} -- Track per-plugin update check results
 
+  local root_path = {}
+
   -- U: Update all plugins
   deck.keymap.set('main', 'U', function()
     deck.notify(deck.style.line {
@@ -42,7 +44,7 @@ function M.setup(plugins)
       M._update_status = {}
       deck.cmd 'reload'
     end)
-  end)
+  end, { path = root_path, desc = 'update all plugins' })
 
   -- S: Restore all plugins from lock file
   deck.keymap.set('main', 'S', function()
@@ -60,7 +62,7 @@ function M.setup(plugins)
         end)
       end,
     }
-  end)
+  end, { path = root_path, desc = 'restore plugins from lock file' })
 
   -- u: Update current plugin
   deck.keymap.set('main', 'u', function()
@@ -90,7 +92,7 @@ function M.setup(plugins)
       end
       deck.cmd 'reload'
     end)
-  end)
+  end, { path = root_path, desc = 'update plugin' })
 
   -- i: Install current missing plugin
   deck.keymap.set('main', 'i', function()
@@ -121,7 +123,7 @@ function M.setup(plugins)
       end
       deck.cmd 'reload'
     end)
-  end)
+  end, { path = root_path, desc = 'install plugin' })
 end
 
 --- Find a parsed plugin spec by plugin name.

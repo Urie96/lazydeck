@@ -367,7 +367,7 @@ deck.config {
 }
 ```
 
-插件 spec 也可以定义全局 `keys`：
+插件 spec 也可以定义懒加载页面 `keys`：
 
 ```lua
 {
@@ -378,7 +378,7 @@ deck.config {
 }
 ```
 
-按下配置的按键时，会先懒加载对应插件并执行其 `config/setup`，然后再调用回调。
+按下配置的按键时，会先懒加载对应插件并执行其 `config/setup`，然后再调用回调。默认绑定到该插件页面及其子页面；也可以在 key spec 中设置 `path` 指定页面 pattern。
 
 页面 entry 也可以定义局部 keymap：
 
