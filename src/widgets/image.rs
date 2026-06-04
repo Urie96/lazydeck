@@ -1,4 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::{HashMap, VecDeque},
+    path::{Path, PathBuf},
+    sync::{Mutex, OnceLock},
+    time::{Instant, UNIX_EPOCH},
+};
 
 use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageReader, Rgba, RgbaImage};
 use mlua::prelude::*;
@@ -7,6 +12,9 @@ use ratatui::{
     text::{Line, Span},
 };
 
+static BLOCK_PREVIEWS: OnceLock<Mutex<BlockPreviewCache>> = OnceLock::new();
+
+#[derive(Clone)]
 pub struct RenderedImage {
     pub lines: Vec<Line<'static>>,
     pub width: u16,
@@ -52,14 +60,46 @@ impl LuaImage {
             });
         }
 
+        let key = BlockPreviewKey::new(&self.path, width, max_height)?;
+        let cache = BLOCK_PREVIEWS.get_or_init(|| Mutex::new(BlockPreviewCache::new(16)));
+        if let Some(rendered) = cache
+            .lock()
+            .expect("block image preview cache mutex poisoned")
+            .get(&key)
+        {
+            return Ok(rendered);
+        }
+
+        let started = Instant::now();
         let image = read_image(&self.path)?;
+        let decoded = started.elapsed();
         let resized = resize_image(&image, width, max_height);
+        let resized_dims = (resized.width(), resized.height());
         let lines = rgba_to_lines(&resized);
-        Ok(RenderedImage {
+        let rendered = RenderedImage {
             width: resized.width() as u16,
             height: lines.len() as u16,
             lines,
-        })
+        };
+        let elapsed = started.elapsed();
+        if elapsed.as_millis() >= 100 {
+            tracing::info!(
+                path = %self.path.display(),
+                width,
+                ?max_height,
+                decoded_ms = decoded.as_millis(),
+                total_ms = elapsed.as_millis(),
+                resized_width = resized_dims.0,
+                resized_height = resized_dims.1,
+                "rendered block image preview"
+            );
+        }
+
+        cache
+            .lock()
+            .expect("block image preview cache mutex poisoned")
+            .insert(key, rendered.clone());
+        Ok(rendered)
     }
 }
 
@@ -138,6 +178,86 @@ fn pixel_pair_to_span(top: Rgba<u8>, bottom: Rgba<u8>) -> Span<'static> {
         (Some(fg), None) => Span::styled("▀", Style::default().fg(fg)),
         (None, Some(fg)) => Span::styled("▄", Style::default().fg(fg)),
         (Some(fg), Some(bg)) => Span::styled("▀", Style::default().fg(fg).bg(bg)),
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct BlockPreviewKey {
+    path: PathBuf,
+    len: u64,
+    modified_ns: u128,
+    width: u16,
+    max_height: Option<u16>,
+}
+
+impl BlockPreviewKey {
+    fn new(path: &Path, width: u16, max_height: Option<u16>) -> mlua::Result<Self> {
+        let meta = std::fs::metadata(path).map_err(|err| {
+            LuaError::RuntimeError(format!(
+                "failed to stat image '{}': {err}",
+                path.display()
+            ))
+        })?;
+        let modified_ns = meta
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+
+        Ok(Self {
+            path: path.to_path_buf(),
+            len: meta.len(),
+            modified_ns,
+            width,
+            max_height,
+        })
+    }
+}
+
+struct BlockPreviewCache {
+    entries: HashMap<BlockPreviewKey, RenderedImage>,
+    order: VecDeque<BlockPreviewKey>,
+    capacity: usize,
+}
+
+impl BlockPreviewCache {
+    fn new(capacity: usize) -> Self {
+        Self {
+            entries: HashMap::new(),
+            order: VecDeque::new(),
+            capacity,
+        }
+    }
+
+    fn get(&mut self, key: &BlockPreviewKey) -> Option<RenderedImage> {
+        let entry = self.entries.get(key)?.clone();
+        self.touch(key);
+        Some(entry)
+    }
+
+    fn insert(&mut self, key: BlockPreviewKey, value: RenderedImage) {
+        if self.entries.contains_key(&key) {
+            self.entries.insert(key.clone(), value);
+            self.touch(&key);
+            return;
+        }
+
+        if self.entries.len() >= self.capacity {
+            if let Some(oldest) = self.order.pop_front() {
+                self.entries.remove(&oldest);
+            }
+        }
+
+        self.order.push_back(key.clone());
+        self.entries.insert(key, value);
+    }
+
+    fn touch(&mut self, key: &BlockPreviewKey) {
+        if let Some(idx) = self.order.iter().position(|existing| existing == key) {
+            self.order.remove(idx);
+        }
+        self.order.push_back(key.clone());
     }
 }
 

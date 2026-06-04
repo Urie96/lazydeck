@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{Mutex, OnceLock},
-    time::UNIX_EPOCH,
+    time::{Instant, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
@@ -268,6 +268,7 @@ fn render_kitty<W: Write + ?Sized>(
 }
 
 fn prepared_image(path: &Path, area: Rect, protocol: Protocol) -> Result<PreparedImage> {
+    let started = Instant::now();
     let (max_width_px, max_height_px) = max_pixels(area);
     let key = PreparedImageKey {
         path: path.to_path_buf(),
@@ -285,22 +286,125 @@ fn prepared_image(path: &Path, area: Rect, protocol: Protocol) -> Result<Prepare
         return Ok(prepared);
     }
 
+    let memory_cache_elapsed = started.elapsed();
     if let Some(prepared) = load_prepared_image_from_disk(&key)? {
         let mut cache = cache.lock().expect("prepared image cache mutex poisoned");
         cache.insert(key, prepared.clone());
+        let elapsed = started.elapsed();
+        if elapsed.as_millis() >= 50 {
+            tracing::info!(
+                path = %path.display(),
+                ?protocol,
+                max_width_px,
+                max_height_px,
+                memory_cache_ms = memory_cache_elapsed.as_millis(),
+                total_ms = elapsed.as_millis(),
+                "loaded prepared native image from disk cache"
+            );
+        }
         return Ok(prepared);
     }
 
-    let img = downscale_for_pixels(path, key.max_width_px, key.max_height_px)?;
+    let disk_cache_elapsed = started.elapsed();
+    let preview_source = ffmpeg_preview_source(path, key.max_width_px, key.max_height_px)?;
+    let ffmpeg_elapsed = started.elapsed();
+    let source_path = preview_source.as_deref().unwrap_or(path);
+    let img = downscale_for_pixels(source_path, key.max_width_px, key.max_height_px)?;
+    let downscale_elapsed = started.elapsed();
     let prepared = match protocol {
         Protocol::Iip => PreparedImage::from_inline_image(encode_inline_image(img)?),
         Protocol::Kitty => PreparedImage::from_kitty_image(encode_kitty_payload(img)?),
     };
+    let encode_elapsed = started.elapsed();
 
     save_prepared_image_to_disk(&key, &prepared)?;
     let mut cache = cache.lock().expect("prepared image cache mutex poisoned");
     cache.insert(key, prepared.clone());
+
+    let total_elapsed = started.elapsed();
+    if total_elapsed.as_millis() >= 100 {
+        tracing::info!(
+            path = %path.display(),
+            ?protocol,
+            max_width_px,
+            max_height_px,
+            disk_cache_ms = disk_cache_elapsed.as_millis(),
+            ffmpeg_ms = ffmpeg_elapsed.as_millis(),
+            ffmpeg_used = preview_source.is_some(),
+            downscale_ms = downscale_elapsed.as_millis(),
+            encode_ms = encode_elapsed.as_millis(),
+            total_ms = total_elapsed.as_millis(),
+            "prepared native image"
+        );
+    }
+
     Ok(prepared)
+}
+
+fn ffmpeg_preview_source(path: &Path, max_w: u32, max_h: u32) -> Result<Option<PathBuf>> {
+    let Some(cache_path) = ffmpeg_preview_cache_path(path, max_w, max_h)? else {
+        return Ok(None);
+    };
+    if cache_path.is_file() {
+        return Ok(Some(cache_path));
+    }
+
+    if let Some(parent) = cache_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let tmp_path = cache_path.with_extension("jpg.tmp");
+    let scale = format!(
+        "scale='min({max_w},iw)':'min({max_h},ih)':force_original_aspect_ratio=decrease:flags=fast_bilinear,format=rgb24"
+    );
+    let output = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(path)
+        .args(["-frames:v", "1", "-vf"])
+        .arg(scale)
+        .args(["-q:v", "6", "-f", "image2"])
+        .arg(&tmp_path)
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => {
+            fs::rename(&tmp_path, &cache_path)?;
+            Ok(Some(cache_path))
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            tracing::debug!(
+                path = %path.display(),
+                status = ?output.status.code(),
+                stderr = %stderr.trim(),
+                "ffmpeg image preview source failed; falling back to image crate"
+            );
+            let _ = fs::remove_file(tmp_path);
+            Ok(None)
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err.into()),
+    }
+}
+
+fn ffmpeg_preview_cache_path(path: &Path, max_w: u32, max_h: u32) -> Result<Option<PathBuf>> {
+    let meta = fs::metadata(path)?;
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    let source = format!(
+        "ffmpeg-v1|{}|{}|{}|{}|{}|q6",
+        path.display(),
+        meta.len(),
+        modified,
+        max_w,
+        max_h
+    );
+    let name = STANDARD.encode(source).replace(['/', '+', '='], "_") + ".jpg";
+    Ok(Some(prepared_cache_dir()?.join("ffmpeg-preview-sources").join(name)))
 }
 
 fn downscale_for_pixels(path: &Path, max_w: u32, max_h: u32) -> Result<DynamicImage> {
@@ -328,7 +432,7 @@ fn max_pixels(area: Rect) -> (u32, u32) {
     }
 }
 
-fn encode_inline_image(img: DynamicImage) -> Result<EncodedImage> {
+fn encode_png_image(img: DynamicImage) -> Result<EncodedImage> {
     let (width, height) = img.dimensions();
     let mut bytes = Vec::new();
     if img.color().has_alpha() {
@@ -339,7 +443,12 @@ fn encode_inline_image(img: DynamicImage) -> Result<EncodedImage> {
             ExtendedColorType::Rgba8,
         )?;
     } else {
-        JpegEncoder::new_with_quality(&mut bytes, 75).encode_image(&img)?;
+        PngEncoder::new(&mut bytes).write_image(
+            &img.into_rgb8(),
+            width,
+            height,
+            ExtendedColorType::Rgb8,
+        )?;
     }
 
     Ok(EncodedImage {
@@ -350,21 +459,31 @@ fn encode_inline_image(img: DynamicImage) -> Result<EncodedImage> {
     })
 }
 
-fn encode_kitty_payload(img: DynamicImage) -> Result<EncodedKittyImage> {
-    let format = if img.color().has_alpha() { 32 } else { 24 };
-    let (width, height) = img.dimensions();
-    let raw = match img {
-        DynamicImage::ImageRgb8(v) => v.into_raw(),
-        DynamicImage::ImageRgba8(v) => v.into_raw(),
-        v if format == 32 => v.into_rgba8().into_raw(),
-        v => v.into_rgb8().into_raw(),
-    };
+fn encode_inline_image(img: DynamicImage) -> Result<EncodedImage> {
+    if img.color().has_alpha() {
+        return encode_png_image(img);
+    }
 
-    Ok(EncodedKittyImage {
+    let (width, height) = img.dimensions();
+    let mut bytes = Vec::new();
+    JpegEncoder::new_with_quality(&mut bytes, 75).encode_image(&img)?;
+
+    Ok(EncodedImage {
         width,
         height,
-        format,
-        base64: STANDARD.encode(raw),
+        binary_len: bytes.len(),
+        base64: STANDARD.encode(bytes),
+    })
+}
+
+fn encode_kitty_payload(img: DynamicImage) -> Result<EncodedKittyImage> {
+    let encoded = encode_png_image(img)?;
+
+    Ok(EncodedKittyImage {
+        width: encoded.width,
+        height: encoded.height,
+        format: 100,
+        base64: encoded.base64,
     })
 }
 
@@ -594,7 +713,7 @@ fn prepared_cache_key(key: &PreparedImageKey) -> Result<String> {
         .map(|duration| duration.as_nanos())
         .unwrap_or_default();
     let source = format!(
-        "v2|{}|{}|{}|{}|{}|{}",
+        "v3|{}|{}|{}|{}|{}|{}",
         key.path.display(),
         meta.len(),
         modified,
@@ -758,6 +877,22 @@ mod tests {
     use super::*;
     use image::{Rgba, RgbaImage};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn kitty_payload_uses_png_transfer_format() {
+        let mut image = RgbaImage::new(2, 2);
+        for y in 0..2 {
+            for x in 0..2 {
+                image.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+
+        let encoded = encode_kitty_payload(DynamicImage::ImageRgba8(image)).expect("encode kitty");
+        let bytes = STANDARD.decode(encoded.base64).expect("decode payload");
+
+        assert_eq!(encoded.format, 100);
+        assert!(bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+    }
 
     #[test]
     fn small_image_native_area_stays_small() {
