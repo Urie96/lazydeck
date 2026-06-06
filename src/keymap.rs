@@ -126,12 +126,47 @@ pub struct KeySequence(Vec<KeyEvent>);
 
 impl KeySequence {
     pub fn prefix_match(&self, events: &[KeyEvent]) -> bool {
-        self.0.len() >= events.len() && &self.0[..events.len()] == events
+        self.0.len() >= events.len()
+            && self
+                .0
+                .iter()
+                .zip(events.iter())
+                .all(|(expected, actual)| key_events_match(expected, actual))
     }
 
     pub fn all_match(&self, events: &[KeyEvent]) -> bool {
-        self.0 == events
+        self.0.len() == events.len()
+            && self
+                .0
+                .iter()
+                .zip(events.iter())
+                .all(|(expected, actual)| key_events_match(expected, actual))
     }
+}
+
+fn is_ctrl_i(event: &KeyEvent) -> bool {
+    event.code == KeyCode::Char('i')
+        && event.modifiers.contains(KeyModifiers::CONTROL)
+        && !event.modifiers.contains(KeyModifiers::ALT)
+}
+
+fn is_legacy_ctrl_i(event: &KeyEvent) -> bool {
+    matches!(event.code, KeyCode::Tab | KeyCode::Char('\t'))
+        && (event.modifiers.is_empty()
+            || (event.modifiers.contains(KeyModifiers::CONTROL)
+                && !event.modifiers.contains(KeyModifiers::ALT)))
+}
+
+fn key_events_match(expected: &KeyEvent, actual: &KeyEvent) -> bool {
+    if expected.code == actual.code && expected.modifiers == actual.modifiers {
+        return true;
+    }
+
+    // In legacy terminal input, Ctrl-I and Tab are encoded identically. Newer
+    // terminals may disambiguate them, but without that support crossterm sees
+    // Ctrl-I as Tab. Treat Tab as a fallback only when the configured keymap is
+    // Ctrl-I so the default history-forward shortcut works across terminals.
+    is_ctrl_i(expected) && is_legacy_ctrl_i(actual)
 }
 
 impl From<&str> for KeySequence {
@@ -283,6 +318,19 @@ mod tests {
         assert_eq!(keyseq.0.len(), 1);
         assert!(keyseq.0[0].modifiers.contains(KeyModifiers::CONTROL));
         assert_eq!(keyseq.0[0].code, KeyCode::Char('i'));
+    }
+
+    #[test]
+    fn test_ctrl_i_matches_legacy_tab_event() {
+        let keyseq = KeySequence::from("<C-i>");
+        assert!(keyseq.all_match(&[KeyEvent::new(
+            KeyCode::Tab,
+            KeyModifiers::empty()
+        )]));
+        assert!(keyseq.all_match(&[KeyEvent::new(
+            KeyCode::Char('\t'),
+            KeyModifiers::empty()
+        )]));
     }
 
     #[test]

@@ -477,13 +477,20 @@ fn encode_inline_image(img: DynamicImage) -> Result<EncodedImage> {
 }
 
 fn encode_kitty_payload(img: DynamicImage) -> Result<EncodedKittyImage> {
-    let encoded = encode_png_image(img)?;
+    let format = if img.color().has_alpha() { 32 } else { 24 };
+    let (width, height) = img.dimensions();
+    let raw = match img {
+        DynamicImage::ImageRgb8(v) => v.into_raw(),
+        DynamicImage::ImageRgba8(v) => v.into_raw(),
+        v if format == 32 => v.into_rgba8().into_raw(),
+        v => v.into_rgb8().into_raw(),
+    };
 
     Ok(EncodedKittyImage {
-        width: encoded.width,
-        height: encoded.height,
-        format: 100,
-        base64: encoded.base64,
+        width,
+        height,
+        format,
+        base64: STANDARD.encode(raw),
     })
 }
 
@@ -713,7 +720,7 @@ fn prepared_cache_key(key: &PreparedImageKey) -> Result<String> {
         .map(|duration| duration.as_nanos())
         .unwrap_or_default();
     let source = format!(
-        "v3|{}|{}|{}|{}|{}|{}",
+        "v4|{}|{}|{}|{}|{}|{}",
         key.path.display(),
         meta.len(),
         modified,
@@ -879,7 +886,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
-    fn kitty_payload_uses_png_transfer_format() {
+    fn kitty_payload_uses_raw_transfer_format() {
         let mut image = RgbaImage::new(2, 2);
         for y in 0..2 {
             for x in 0..2 {
@@ -890,8 +897,8 @@ mod tests {
         let encoded = encode_kitty_payload(DynamicImage::ImageRgba8(image)).expect("encode kitty");
         let bytes = STANDARD.decode(encoded.base64).expect("decode payload");
 
-        assert_eq!(encoded.format, 100);
-        assert!(bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+        assert_eq!(encoded.format, 32);
+        assert_eq!(bytes.len(), 2 * 2 * 4);
     }
 
     #[test]
