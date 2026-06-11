@@ -157,8 +157,40 @@ fn is_legacy_ctrl_i(event: &KeyEvent) -> bool {
                 && !event.modifiers.contains(KeyModifiers::ALT)))
 }
 
+fn shifted_char_match(expected: &KeyEvent, actual: &KeyEvent) -> bool {
+    let (KeyCode::Char(expected_char), KeyCode::Char(actual_char)) = (expected.code, actual.code)
+    else {
+        return false;
+    };
+
+    let expected_modifiers_without_shift = expected.modifiers - KeyModifiers::SHIFT;
+    let actual_modifiers_without_shift = actual.modifiers - KeyModifiers::SHIFT;
+    if expected_modifiers_without_shift != actual_modifiers_without_shift {
+        return false;
+    }
+
+    // Terminals differ in how shifted printable characters are reported. For
+    // example, Shift-u may arrive as Char('U'), Char('U') + SHIFT, or
+    // Char('u') + SHIFT. Match those forms without making lowercase keymaps
+    // (like `u`) trigger on shifted input.
+    if expected.modifiers.contains(KeyModifiers::SHIFT) {
+        return actual_char == expected_char.to_ascii_uppercase()
+            || (actual.modifiers.contains(KeyModifiers::SHIFT) && actual_char == expected_char);
+    }
+
+    if actual.modifiers.contains(KeyModifiers::SHIFT) && !expected_char.is_ascii_lowercase() {
+        return actual_char == expected_char || actual_char.to_ascii_uppercase() == expected_char;
+    }
+
+    false
+}
+
 fn key_events_match(expected: &KeyEvent, actual: &KeyEvent) -> bool {
     if expected.code == actual.code && expected.modifiers == actual.modifiers {
+        return true;
+    }
+
+    if shifted_char_match(expected, actual) {
         return true;
     }
 
@@ -323,14 +355,33 @@ mod tests {
     #[test]
     fn test_ctrl_i_matches_legacy_tab_event() {
         let keyseq = KeySequence::from("<C-i>");
-        assert!(keyseq.all_match(&[KeyEvent::new(
-            KeyCode::Tab,
-            KeyModifiers::empty()
-        )]));
-        assert!(keyseq.all_match(&[KeyEvent::new(
-            KeyCode::Char('\t'),
-            KeyModifiers::empty()
-        )]));
+        assert!(keyseq.all_match(&[KeyEvent::new(KeyCode::Tab, KeyModifiers::empty())]));
+        assert!(keyseq.all_match(&[KeyEvent::new(KeyCode::Char('\t'), KeyModifiers::empty())]));
+    }
+
+    #[test]
+    fn test_uppercase_key_matches_shifted_terminal_forms() {
+        let keyseq = KeySequence::from("U");
+        assert!(keyseq.all_match(&[KeyEvent::new(KeyCode::Char('U'), KeyModifiers::SHIFT)]));
+        assert!(keyseq.all_match(&[KeyEvent::new(KeyCode::Char('u'), KeyModifiers::SHIFT)]));
+    }
+
+    #[test]
+    fn test_lowercase_key_does_not_match_shifted_input() {
+        let keyseq = KeySequence::from("u");
+        assert!(!keyseq.all_match(&[KeyEvent::new(KeyCode::Char('u'), KeyModifiers::SHIFT)]));
+    }
+
+    #[test]
+    fn test_shift_notation_matches_uppercase_terminal_form() {
+        let keyseq = KeySequence::from("<S-u>");
+        assert!(keyseq.all_match(&[KeyEvent::new(KeyCode::Char('U'), KeyModifiers::empty())]));
+    }
+
+    #[test]
+    fn test_shifted_symbol_matches_shifted_terminal_form() {
+        let keyseq = KeySequence::from("?");
+        assert!(keyseq.all_match(&[KeyEvent::new(KeyCode::Char('?'), KeyModifiers::SHIFT)]));
     }
 
     #[test]
