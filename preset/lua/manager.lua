@@ -5,6 +5,9 @@ local M = {}
 local pm -- will be set to deck._pm
 
 local PLUGIN_USAGE_CACHE_NS = 'lazydeck.plugin.usage'
+local MAX_UPDATE_COMMITS_PREVIEW = 10
+local UPDATE_BADGE = '󰚰 '
+local BREAKING_UPDATE_BADGE = ' '
 
 local function normalize_plugin_usage(usage)
   if type(usage) ~= 'table' then usage = {} end
@@ -14,9 +17,7 @@ local function normalize_plugin_usage(usage)
   }
 end
 
-local function plugin_usage(name)
-  return normalize_plugin_usage(deck.cache.get(PLUGIN_USAGE_CACHE_NS, name))
-end
+local function plugin_usage(name) return normalize_plugin_usage(deck.cache.get(PLUGIN_USAGE_CACHE_NS, name)) end
 
 local function format_last_used(ts)
   ts = tonumber(ts) or 0
@@ -31,6 +32,8 @@ function M.setup(plugins)
   M.plugins = pm.flatten_plugins(plugins or {})
 
   M._update_status = {} -- Track per-plugin update check results
+  M._checking_updates = false
+  M._check_generation = 0
 
   local root_path = {}
 
@@ -45,6 +48,14 @@ function M.setup(plugins)
       deck.cmd 'reload'
     end)
   end, { path = root_path, desc = 'update all plugins' })
+
+  -- C: Check all plugins for updates
+  deck.keymap.set(
+    'main',
+    'C',
+    function() M.check_all_updates(plugins or {}) end,
+    { path = root_path, desc = 'check plugin updates' }
+  )
 
   -- S: Restore all plugins from lock file
   deck.keymap.set('main', 'S', function()
@@ -132,6 +143,80 @@ end
 function M.find_spec_by_name(name)
   for _, spec in ipairs(M.plugins) do
     if spec.name == name then return spec end
+  end
+end
+
+function M.update_status(name) return M._update_status and M._update_status[name] or nil end
+
+function M.update_badge(name)
+  local status = M.update_status(name)
+  if not status or not status.has_update then return nil end
+  if status.breaking then return UPDATE_BADGE .. BREAKING_UPDATE_BADGE, 'red' end
+  return UPDATE_BADGE, 'yellow'
+end
+
+function M.check_all_updates(plugins)
+  if M._checking_updates then
+    deck.notify(deck.style.line {
+      deck.style.span('⟳ '):fg 'cyan',
+      deck.style.span 'Already checking plugin updates...',
+    })
+    return
+  end
+
+  local specs = {}
+  for _, spec in ipairs(pm.flatten_plugins(plugins or {})) do
+    if spec.is_remote and pm.is_installed(spec) then table.insert(specs, spec) end
+  end
+
+  M._update_status = {}
+  M._checking_updates = true
+  M._check_generation = (M._check_generation or 0) + 1
+  local generation = M._check_generation
+
+  if #specs == 0 then
+    M._checking_updates = false
+    deck.notify(deck.style.line {
+      deck.style.span('✓ '):fg 'green',
+      deck.style.span 'No installed remote plugins to check',
+    })
+    deck.cmd 'reload'
+    return
+  end
+
+  deck.notify(deck.style.line {
+    deck.style.span('⟳ '):fg 'cyan',
+    deck.style.span('Checking updates for ' .. #specs .. ' plugin(s)...'),
+  })
+  deck.cmd 'reload'
+
+  local remaining = #specs
+  local updated = 0
+  local breaking = 0
+
+  local function finish_one(spec, result)
+    if generation ~= M._check_generation then return end
+
+    result = result or { name = spec.name, has_update = false, commits = {} }
+    M._update_status[spec.name] = result
+    if result.has_update then updated = updated + 1 end
+    if result.has_update and result.breaking then breaking = breaking + 1 end
+
+    remaining = remaining - 1
+    if remaining <= 0 then
+      M._checking_updates = false
+      local message = 'Checked ' .. #specs .. ' plugin(s): ' .. updated .. ' update(s)'
+      if breaking > 0 then message = message .. ', ' .. breaking .. ' breaking' end
+      deck.notify(deck.style.line {
+        deck.style.span('✓ '):fg 'green',
+        deck.style.span(message),
+      })
+      deck.cmd 'reload'
+    end
+  end
+
+  for _, spec in ipairs(specs) do
+    pm.check_update(spec, function(_, _, result) finish_one(spec, result) end)
   end
 end
 
@@ -358,6 +443,13 @@ function M.preview(entry, cb)
     table.insert(
       lines,
       deck.style.line {
+        deck.style.span('   C'):fg 'green',
+        deck.style.span(' Check plugin updates'):fg 'gray',
+      }
+    )
+    table.insert(
+      lines,
+      deck.style.line {
         deck.style.span('   S'):fg 'green',
         deck.style.span(' Restore all from lock file'):fg 'gray',
       }
@@ -381,62 +473,111 @@ function M.preview(entry, cb)
   end
 
   -- Build update status lines helper
-  local function build_update_lines(has_update, remote_info)
+  local function build_update_lines(status)
     local lines = {}
     table.insert(lines, deck.style.line {})
-    if has_update then
+    table.insert(
+      lines,
+      deck.style.line {
+        deck.style.span('Updates:'):fg 'magenta',
+      }
+    )
+
+    if not spec.is_remote then
+      table.insert(lines, deck.style.line { deck.style.span('   Local plugin'):fg 'gray' })
+      return lines
+    end
+
+    if entry.status ~= 'installed' then
+      table.insert(lines, deck.style.line { deck.style.span('   Plugin is missing'):fg 'yellow' })
+      return lines
+    end
+
+    if M._checking_updates then
+      table.insert(lines, deck.style.line { deck.style.span('   Checking updates...'):fg 'cyan' })
+      return lines
+    end
+
+    if not status then
       table.insert(
         lines,
-        deck.style.line {
-          deck.style.span('New version available!'):fg 'yellow',
-        }
+        deck.style.line { deck.style.span('   Not checked. Press C to check all plugins.'):fg 'gray' }
       )
-      if remote_info then
-        table.insert(
-          lines,
-          deck.style.line {
-            deck.style.span('  Remote: '):fg 'gray',
-            deck.style.span(remote_info):fg 'white',
-          }
-        )
-      end
-    else
+      return lines
+    end
+
+    if status.error then
+      table.insert(
+        lines,
+        deck.style.line { deck.style.span('   Check failed: '):fg 'red', deck.style.span(status.error):fg 'gray' }
+      )
+      return lines
+    end
+
+    if not status.has_update then
+      table.insert(lines, deck.style.line { deck.style.span('   Up to date'):fg 'green' })
+      return lines
+    end
+
+    table.insert(
+      lines,
+      deck.style.line {
+        deck.style.span('   New version available '):fg(status.breaking and 'red' or 'yellow'),
+        deck.style.span(status.remote_info or status.latest_ref or ''):fg 'gray',
+      }
+    )
+
+    if status.local_commit and status.remote_commit then
       table.insert(
         lines,
         deck.style.line {
-          deck.style.span('Up to date'):fg 'green',
+          deck.style.span('   Range:  '):fg 'gray',
+          deck.style.span(status.local_commit:sub(1, 7)):fg 'white',
+          deck.style.span(' → '):fg 'gray',
+          deck.style.span(status.remote_commit:sub(1, 7)):fg 'white',
         }
       )
     end
+
+    local breaking_commits = status.breaking_commits or {}
+    if #breaking_commits > 0 then
+      table.insert(
+        lines,
+        deck.style.line {
+          deck.style.span('   Breaking changes:'):fg 'red',
+        }
+      )
+      for _, commit in ipairs(breaking_commits) do
+        table.insert(lines, deck.style.line { deck.style.span('     ' .. commit):fg 'red' })
+      end
+    end
+
+    local commits = status.commits or {}
+    if #commits > 0 then
+      table.insert(
+        lines,
+        deck.style.line {
+          deck.style.span('   Commits:'):fg 'cyan',
+        }
+      )
+      for i, commit in ipairs(commits) do
+        if i > MAX_UPDATE_COMMITS_PREVIEW then
+          table.insert(
+            lines,
+            deck.style.line {
+              deck.style.span('     ... and ' .. (#commits - MAX_UPDATE_COMMITS_PREVIEW) .. ' more'):fg 'gray',
+            }
+          )
+          break
+        end
+        table.insert(lines, deck.style.line { deck.style.span('     ' .. commit):fg 'white' })
+      end
+    end
+
     return lines
   end
 
-  -- Async: check for updates (only for installed remote plugins)
-  if spec.is_remote and entry.status == 'installed' then
-    -- Show basic info first
-    cb(build_lines(nil))
-
-    -- Use cached result if available
-    if M._update_status[spec.name] ~= nil then
-      local cached = M._update_status[spec.name]
-      cb(build_lines(build_update_lines(cached.has_update, cached.remote_info)))
-      return
-    end
-
-    pm.check_update(spec, function(has_update, remote_info)
-      M._update_status[spec.name] = {
-        has_update = has_update,
-        remote_info = remote_info,
-      }
-
-      local current_entry = deck.api.get_hovered()
-      if current_entry and current_entry.key == entry.key then
-        cb(build_lines(build_update_lines(has_update, remote_info)))
-      end
-    end)
-  else
-    cb(build_lines(nil))
-  end
+  cb(build_lines(build_update_lines(M.update_status(spec.name))))
 end
 
 -- Attach _manager to the same underlying table that _deck points to.

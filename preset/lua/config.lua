@@ -239,12 +239,21 @@ end
 local function plugin_display(spec, meta)
   local status = plugin_status(spec)
   local name_color = status == 'missing' and 'yellow' or 'white'
-  return deck.style.line {
+  local parts = {
     deck.style.span(meta.icon .. ' '):fg(meta.color),
     deck.style.span(spec.name):fg(name_color):bold(),
-    '  ',
-    deck.style.span(meta.desc):fg 'DarkGray',
   }
+
+  local badge = ''
+  local badge_color = 'yellow'
+  if deck._manager and deck._manager.update_badge then
+    badge, badge_color = deck._manager.update_badge(spec.name)
+  end
+  table.insert(parts, deck.style.span((badge and badge ~= '') and (' ' .. badge) or ''):fg(badge_color or 'yellow'))
+
+  table.insert(parts, ' ')
+  table.insert(parts, deck.style.span(meta.desc):fg 'DarkGray')
+  return deck.style.line(parts)
 end
 
 local function list_root_plugins(cb)

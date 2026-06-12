@@ -39,6 +39,28 @@ local function git(cmd, callback)
   deck.system(cmd, { env = git_env }, callback)
 end
 
+local function parse_commit_lines(stdout)
+  local commits = {}
+  local text = (stdout or ''):trim()
+  if text == '' then return commits end
+  for _, line in ipairs(text:split('\n')) do
+    if line ~= '' then table.insert(commits, line) end
+  end
+  return commits
+end
+
+local function is_breaking_commit(line)
+  return line:match '%x+ %w+!:' ~= nil or line:match '%x+ %w+%b()!:' ~= nil
+end
+
+local function filter_breaking_commits(commits)
+  local breaking = {}
+  for _, commit in ipairs(commits or {}) do
+    if is_breaking_commit(commit) then table.insert(breaking, commit) end
+  end
+  return breaking
+end
+
 local function is_absolute_path(path)
   return path:match '^/' or path:match '^%a:[/\\]'
 end
@@ -467,16 +489,25 @@ end
 
 --- Check whether a plugin has a newer version available (within constraints).
 --- @param spec table Parsed plugin spec
---- @param callback function Called with (boolean has_update, string|nil remote_info)
+--- @param callback function Called with (boolean has_update, string|nil remote_info, table result)
 function pm.check_update(spec, callback)
-  if not spec.is_remote or not pm.is_installed(spec) then
-    callback(false, nil)
+  local result = {
+    name = spec and spec.name,
+    has_update = false,
+    commits = {},
+    breaking = false,
+    breaking_commits = {},
+  }
+
+  if not spec or not spec.is_remote or not pm.is_installed(spec) then
+    callback(false, nil, result)
     return
   end
 
   if spec.commit then
     -- Commit-pinned: never has updates
-    callback(false, nil)
+    result.pinned = true
+    callback(false, nil, result)
     return
   end
 
@@ -485,17 +516,20 @@ function pm.check_update(spec, callback)
   -- Fetch latest
   git({ 'git', '-C', install_path, 'fetch', '--tags', '--force' }, function(fetch_out)
     if fetch_out.code ~= 0 then
-      callback(false, nil)
+      result.error = explain_git_error(fetch_out.stderr)
+      callback(false, nil, result)
       return
     end
 
     -- Get local HEAD
     git({ 'git', '-C', install_path, 'rev-parse', 'HEAD' }, function(local_out)
       if local_out.code ~= 0 then
-        callback(false, nil)
+        result.error = explain_git_error(local_out.stderr)
+        callback(false, nil, result)
         return
       end
       local local_commit = local_out.stdout:trim()
+      result.local_commit = local_commit
 
       -- Determine remote ref
       local remote_ref
@@ -506,14 +540,19 @@ function pm.check_update(spec, callback)
       else
         remote_ref = 'origin/HEAD'
       end
+      result.remote_ref = remote_ref
 
       git({ 'git', '-C', install_path, 'rev-parse', remote_ref }, function(remote_out)
         if remote_out.code ~= 0 then
-          callback(false, nil)
+          result.error = explain_git_error(remote_out.stderr)
+          callback(false, nil, result)
           return
         end
         local remote_commit = remote_out.stdout:trim()
         local has_update = local_commit ~= remote_commit
+        result.remote_commit = remote_commit
+        result.latest_ref = remote_commit:sub(1, 7)
+        result.has_update = has_update
 
         if has_update then
           -- Get log between local and remote
@@ -522,15 +561,20 @@ function pm.check_update(spec, callback)
             '--oneline', '--no-decorate',
             local_commit .. '..' .. remote_commit,
           }, function(log_out)
+            local commits = {}
+            if log_out.code == 0 then commits = parse_commit_lines(log_out.stdout) end
+            local breaking_commits = filter_breaking_commits(commits)
             local info = remote_commit:sub(1, 7)
-            if log_out.code == 0 and log_out.stdout:trim() ~= '' then
-              local lines = log_out.stdout:trim():split('\n')
-              info = info .. ' (' .. #lines .. ' new commits)'
-            end
-            callback(true, info)
+            if #commits > 0 then info = info .. ' (' .. #commits .. ' new commits)' end
+            result.commits = commits
+            result.breaking_commits = breaking_commits
+            result.breaking = #breaking_commits > 0
+            result.remote_info = info
+            callback(true, info, result)
           end)
         else
-          callback(false, nil)
+          result.remote_info = nil
+          callback(false, nil, result)
         end
       end)
     end)
