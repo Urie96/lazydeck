@@ -70,10 +70,13 @@ deck.api.get_hovered_path()            -- 获取悬停项完整路径
 deck.api.get_selected()                -- 获取当前页面选中的 entries；若没有选中则返回当前 hovered entry
 deck.api.toggle_selected()             -- 切换当前 hovered entry 的选中状态，并自动下移一项
 deck.api.clear_selected()              -- 清空当前页面选中状态
-deck.api.argv()                        -- 获取命令行参数
+deck.api.argv()                        -- 获取命令行参数（包含 --eval/-e 等原始参数）
+deck.api.feedkeys(keys)                -- 发送按键序列，格式同 deck.keymap.set，如 "j" / "gg" / "<down>"
 deck.api.get_filter()                  -- 获取当前过滤字符串
 deck.api.set_filter()                  -- 设置当前过滤字符串
 deck.hook.pre_reload(cb)               -- 添加重载前钩子
+-- CLI: lazydeck --eval "deck.notify('hi')" [initial-path]
+-- --eval/-e 会在初始页面完成进入和首次 list/hook 后执行
 ```
 
 ### cache.lua - 缓存系统

@@ -60,6 +60,9 @@ cargo run --release -- --version
 # 运行并直接进入指定页面
 cargo run --release -- /docker/container
 
+# 进入初始页面后执行一段 Lua
+cargo run --release -- --eval "deck.notify('hello from cli')" /docker/container
+
 # 使用自定义配置文件或配置目录
 cargo run --release -- --config ~/.config/lazydeck/init.lua
 cargo run --release -- --config ~/.config/lazydeck
@@ -212,7 +215,7 @@ lazydeck 自带多个示例插件：
 
 ## 配置
 
-在 `config/init.lua` 中配置（对应 `~/.config/lazydeck/init.lua`）。也可以用 `lazydeck -c/--config` 指定其他配置文件或配置目录：
+在 `config/init.lua` 中配置（对应 `~/.config/lazydeck/init.lua`）。也可以用 `lazydeck -c/--config` 指定其他配置文件或配置目录；需要启动后临时执行 Lua 时，可用 `lazydeck -e/--eval "deck.notify('hi')" [initial-path]`：
 
 ```lua
 deck.config {

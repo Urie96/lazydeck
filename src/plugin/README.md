@@ -103,6 +103,7 @@ scope(lua, state, sender, || {
 | `toggle_selected()` | 切换当前 hovered entry 的选中状态，并自动下移一项 |
 | `clear_selected()` | 清空当前页面的选中状态 |
 | `argv()` | 获取命令行参数 |
+| `feedkeys(keys)` | 通过正常按键处理流程发送按键序列，key 格式同 `deck.keymap.set` |
 | `get_filter()` | 获取当前过滤条件 |
 | `get_available_keymaps()` | 获取当前上下文可用快捷键 |
 | `enter_filter_mode()` | 进入过滤模式 |

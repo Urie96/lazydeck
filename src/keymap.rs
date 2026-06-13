@@ -125,6 +125,10 @@ impl From<Vec<String>> for KeymapPathPattern {
 pub struct KeySequence(Vec<KeyEvent>);
 
 impl KeySequence {
+    pub fn into_events(self) -> Vec<KeyEvent> {
+        self.0
+    }
+
     pub fn prefix_match(&self, events: &[KeyEvent]) -> bool {
         self.0.len() >= events.len()
             && self
@@ -458,6 +462,14 @@ mod tests {
         assert_eq!(keyseq.0[0].code, KeyCode::Char('x'));
         assert!(keyseq.0[1].modifiers.contains(KeyModifiers::CONTROL));
         assert_eq!(keyseq.0[1].code, KeyCode::Char('c'));
+    }
+
+    #[test]
+    fn test_into_events_preserves_sequence() {
+        let events = KeySequence::from("g<down>").into_events();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].code, KeyCode::Char('g'));
+        assert_eq!(events[1].code, KeyCode::Down);
     }
 
     #[test]

@@ -6,7 +6,7 @@ const APP_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 
 fn print_help() {
     println!(
-        "{name} {version}\n{description}\n\nUsage:\n  {name} [OPTIONS] [initial-path]\n\nArguments:\n  [initial-path]  Optional initial page path, e.g. /docker/container\n\nOptions:\n  -c, --config <path>  Use a custom config file or config directory\n  -h, --help           Print help\n  -V, --version        Print version",
+        "{name} {version}\n{description}\n\nUsage:\n  {name} [OPTIONS] [initial-path]\n\nArguments:\n  [initial-path]  Optional initial page path, e.g. /docker/container\n\nOptions:\n  -c, --config <path>  Use a custom config file or config directory\n  -e, --eval <lua>     Execute Lua after the initial page loads\n  -h, --help           Print help\n  -V, --version        Print version",
         name = APP_NAME,
         version = APP_VERSION,
         description = APP_DESCRIPTION,
@@ -48,6 +48,7 @@ mod widgets;
 struct CliOptions {
     initial_path: Vec<String>,
     config_path: Option<PathBuf>,
+    eval_scripts: Vec<String>,
 }
 
 fn parse_cli_options(
@@ -80,12 +81,31 @@ fn parse_cli_options(
                 };
                 opt.config_path = Some(PathBuf::from(raw_path));
             }
+            "-e" | "--eval" => {
+                let Some(raw_script) = args.next() else {
+                    anyhow::bail!("Option {arg} requires a Lua argument");
+                };
+                let script = raw_script
+                    .into_string()
+                    .map_err(|_| anyhow::anyhow!("--eval argument must be valid UTF-8"))?;
+                if script.is_empty() {
+                    anyhow::bail!("Option {arg} requires a Lua argument");
+                }
+                opt.eval_scripts.push(script);
+            }
             _ if arg.starts_with("--config=") => {
                 let path = arg.trim_start_matches("--config=");
                 if path.is_empty() {
                     anyhow::bail!("Option --config requires a path argument");
                 }
                 opt.config_path = Some(PathBuf::from(path));
+            }
+            _ if arg.starts_with("--eval=") => {
+                let script = arg.trim_start_matches("--eval=");
+                if script.is_empty() {
+                    anyhow::bail!("Option --eval requires a Lua argument");
+                }
+                opt.eval_scripts.push(script.to_string());
             }
             _ if arg.starts_with('-') => {
                 anyhow::bail!(
@@ -179,7 +199,7 @@ async fn main() -> anyhow::Result<()> {
 
             let events = events::Events::new();
 
-            let mut app = App::new(events.sender(), term, cli.initial_path);
+            let mut app = App::new(events.sender(), term, cli.initial_path, cli.eval_scripts);
 
             if let Err(e) = app.run(events).await {
                 term::restore();
@@ -209,6 +229,7 @@ mod tests {
         let opt = parse_cli_options(os_args(&["lazydeck"])).unwrap().unwrap();
         assert_eq!(opt.initial_path, Vec::<String>::new());
         assert!(opt.config_path.is_none());
+        assert!(opt.eval_scripts.is_empty());
     }
 
     #[test]
@@ -248,6 +269,43 @@ mod tests {
     fn parse_cli_options_rejects_missing_config_path() {
         assert!(parse_cli_options(os_args(&["lazydeck", "-c"])).is_err());
         assert!(parse_cli_options(os_args(&["lazydeck", "--config"])).is_err());
+    }
+
+    #[test]
+    fn parse_cli_options_parses_eval_flag() {
+        let opt = parse_cli_options(os_args(&[
+            "lazydeck",
+            "--eval",
+            "deck.notify('hi')",
+            "-e",
+            "deck.cmd('reload')",
+            "/docker",
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            opt.eval_scripts,
+            vec![
+                "deck.notify('hi')".to_string(),
+                "deck.cmd('reload')".to_string()
+            ]
+        );
+        assert_eq!(opt.initial_path, vec!["docker".to_string()]);
+    }
+
+    #[test]
+    fn parse_cli_options_parses_eval_equals_form() {
+        let opt = parse_cli_options(os_args(&["lazydeck", "--eval=deck.notify('hi')"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(opt.eval_scripts, vec!["deck.notify('hi')".to_string()]);
+    }
+
+    #[test]
+    fn parse_cli_options_rejects_missing_eval_script() {
+        assert!(parse_cli_options(os_args(&["lazydeck", "-e"])).is_err());
+        assert!(parse_cli_options(os_args(&["lazydeck", "--eval"])).is_err());
+        assert!(parse_cli_options(os_args(&["lazydeck", "--eval="])).is_err());
     }
 
     #[test]

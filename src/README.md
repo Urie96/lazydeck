@@ -90,10 +90,10 @@ main.rs
 Logs::start()           # 初始化日志
 errors::install_hooks()  # 安装 panic 钩子
 term::init()            # 初始化终端
-parse_cli_options()     # 解析命令行参数（--help / --version / --config / 可选初始路径）
+parse_cli_options()     # 解析命令行参数（--help / --version / --config / --eval / 可选初始路径）
     │
     ▼
-App::new(initial_path)
+App::new(initial_path, eval_scripts)
     │
     ├─ 创建 State
     ├─ 初始化 Lua
@@ -105,11 +105,12 @@ App::run(events)
     ▼
 事件循环
     │
-    ├─ handle_event()    # 处理事件
-    ├─ handle_command()  # 执行命令
-    ├─ call_list()       # 调用 Lua _list()
-    ├─ call_preview()    # 调用 Lua _preview()
-    └─ draw()            # 渲染 UI
+    ├─ handle_event()             # 处理事件
+    ├─ handle_command()           # 执行命令
+    ├─ call_list()                # 调用 Lua _list()
+    ├─ run_startup_eval_scripts() # 执行 --eval Lua 片段
+    ├─ call_preview()             # 调用 Lua _preview()
+    └─ draw()                     # 渲染 UI
 ```
 
 路径处理约定：

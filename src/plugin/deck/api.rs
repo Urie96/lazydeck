@@ -1,4 +1,4 @@
-use crate::{plugin, widgets::Renderable, Event, PageEntry};
+use crate::{plugin, widgets::Renderable, Event, KeySequence, PageEntry};
 use mlua::prelude::*;
 
 pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
@@ -137,6 +137,15 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
         .create_function(|lua, ()| lua.create_sequence_from(std::env::args()))?
         .into_lua(lua)?;
 
+    let feedkeys = lua
+        .create_function(|lua, keys: String| {
+            for key in KeySequence::from(keys.as_str()).into_events() {
+                plugin::send_event(lua, Event::Crossterm(crossterm::event::Event::Key(key)))?;
+            }
+            Ok(())
+        })?
+        .into_lua(lua)?;
+
     let set_filter = lua
         .create_function(|lua, filter: String| {
             plugin::mut_scope_state(lua, |state| {
@@ -232,6 +241,7 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
         ("get_current_path", get_current_path),
         ("get_hovered_path", get_hovered_path),
         ("argv", argv),
+        ("feedkeys", feedkeys),
         ("set_filter", set_filter),
         ("get_filter", get_filter),
         ("get_available_keymaps", get_available_keymaps),

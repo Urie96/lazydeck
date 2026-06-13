@@ -33,6 +33,7 @@ pub struct App {
     dirty: bool,
     lua: Lua,
     initial_path: Vec<String>,
+    startup_eval_scripts: Vec<String>,
 }
 
 impl App {
@@ -40,6 +41,7 @@ impl App {
         event_sender: mpsc::UnboundedSender<Event>,
         term: Term,
         initial_path: Vec<String>,
+        startup_eval_scripts: Vec<String>,
     ) -> Self {
         let mut state = State::new();
         let lua = Lua::new();
@@ -55,6 +57,7 @@ impl App {
             dirty: false,
             quitting: false,
             initial_path,
+            startup_eval_scripts,
         }
     }
 
@@ -95,6 +98,7 @@ impl App {
         }
         self.call_list()?;
         self.run_post_page_enter_hooks()?;
+        self.run_startup_eval_scripts()?;
         self.dirty = true;
 
         // Initially hide cursor (Main mode)
@@ -169,6 +173,21 @@ impl App {
             }),
             "Failed to call deck._preview",
         )
+    }
+
+    fn run_startup_eval_scripts(&mut self) -> Result<()> {
+        for (index, script) in self.startup_eval_scripts.iter().enumerate() {
+            anyhow::Context::context(
+                plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
+                    self.lua
+                        .load(script.as_str())
+                        .set_name(format!("--eval[{}]", index + 1))
+                        .exec()
+                }),
+                format!("Failed to execute --eval script #{}", index + 1),
+            )?;
+        }
+        Ok(())
     }
 
     fn refresh_preview(&mut self) -> Result<()> {

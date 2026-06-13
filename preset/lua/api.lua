@@ -214,6 +214,10 @@ function api.get_hovered_path() return _deck.api.get_hovered_path() end
 ---@return string[] args Command line arguments (first element is program name)
 function api.argv() return _deck.api.argv() end
 
+---Feed key events through the normal lazydeck key handling path
+---@param keys string Key sequence using keymap notation, e.g. "j", "gg", "<down>", "<C-r>"
+function api.feedkeys(keys) return _deck.api.feedkeys(keys) end
+
 ---Set the filter string for the current page
 ---The page entries will be filtered based on this string
 ---If empty string, no filter is applied (show all entries)
