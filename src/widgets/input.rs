@@ -14,6 +14,8 @@ pub struct InputDialogState {
     pub prompt: String,
     /// Placeholder text (shown when text is empty)
     pub placeholder: String,
+    /// Whether the input should be masked (e.g. password entry)
+    pub secret: bool,
 }
 
 impl InputDialogState {
@@ -41,6 +43,7 @@ impl InputDialogState {
             cursor_y: 0,
             prompt: prompt.to_string(),
             placeholder: placeholder.to_string(),
+            secret: false,
         }
     }
 
@@ -53,6 +56,7 @@ impl InputDialogState {
             cursor_y: 0,
             prompt: " ".to_string(),
             placeholder: String::new(),
+            secret: false,
         }
     }
 
@@ -140,6 +144,35 @@ mod tests {
         assert_eq!(buf[(4, 1)].symbol(), "e");
         assert_eq!(buf[(5, 1)].symbol(), "f");
         assert_eq!(buf[(6, 1)].symbol(), " ");
+    }
+
+    #[test]
+    fn input_dialog_secret_mode_masks_text() {
+        let mut state = InputDialogState::new("Password", "");
+        state.secret = true;
+        state.text = "hunter2".to_string();
+        state.cursor_position = state.text.len();
+
+        let area = Rect::new(0, 0, 20, 3);
+        let mut buf = Buffer::empty(area);
+        InputDialogWidget::new().render(area, &mut buf, &mut state);
+
+        // All visible characters should be masked bullets (arrow occupies x=1..2, text starts at x=3)
+        for x in 0.."hunter2".len() {
+            assert_eq!(
+                buf[((3 + x) as u16, 1)].symbol(),
+                "•",
+                "cell {} should be masked",
+                3 + x
+            );
+        }
+        // The real text must never appear in the buffer
+        for cell in buf.content.iter() {
+            assert!(
+                !cell.symbol().contains("hunter2"),
+                "secret text leaked into render buffer"
+            );
+        }
     }
 }
 
@@ -249,6 +282,12 @@ impl StatefulWidget for InputDialogWidget {
         } else {
             let (_, text, cursor_offset) =
                 Self::visible_window(&state.text, state.cursor_position, text_max_width);
+            // Mask the input when in secret mode (e.g. password entry)
+            let text = if state.secret {
+                text.chars().map(|_| '•').collect()
+            } else {
+                text
+            };
             (text, cursor_offset)
         };
 

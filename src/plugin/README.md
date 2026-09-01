@@ -465,7 +465,7 @@ end
 | `deck.system.kill(pid[, signal])` | 向进程发送信号，默认 `SIGTERM` |
 | `deck.system.open(path)` | 用默认应用打开文件 |
 | `deck.system.edit(opts[, callback])` | 用外部编辑器编辑文件内容；传 `path` 时直接原地编辑该文件；不传 `path` 时可用 `ext` 指定临时文件后缀以启用语法高亮；传 callback 时回调接收 `(content, error)`，不传时 Rust 不会读取编辑后内容 |
-| `deck.system.exec(opts)` | 异步执行命令 |
+| `deck.system.exec(opts)` | 异步执行命令；`opts.sudo = true` 时先探测是否可免密 sudo（`sudo -n true`），若需密码则弹出掩码输入框，密码经 stdin 喂给 sudo（`sudo -S -p ''`） |
 | `deck.system.interactive(opts)` | 执行交互式命令 |
 
 ### deck.socket - 长连接 Socket
@@ -522,7 +522,7 @@ end
 | `deck.notify(msg)` | 显示通知 (支持 string、Span、Line 或 Text 类型) |
 | `deck.confirm(opts)` | 显示确认对话框 |
 | `deck.select(opts, callback)` | 显示选择对话框 |
-| `deck.input(opts)` / `deck.input.show(opts)` | 显示输入对话框 |
+| `deck.input(opts)` / `deck.input.show(opts)` | 显示输入对话框；`opts.secret = true` 时输入以 `•` 掩码显示（适合密码输入） |
 | `deck.input.get()` | 获取当前输入对话框文本；未打开时返回 `nil` |
 | `deck.input.set(value)` | 设置当前输入对话框文本，并触发 `on_change`；未打开时抛错 |
 

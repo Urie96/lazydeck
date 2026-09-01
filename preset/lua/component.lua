@@ -38,6 +38,7 @@ function deck.notify(message) return _deck.notify(message) end
 ---@field prompt? string Optional prompt text to display before input (defaults to "")
 ---@field placeholder? string Optional placeholder text shown when input is empty (defaults to "")
 ---@field value? string Optional initial input text (defaults to "")
+---@field secret? boolean Mask the typed input with bullets (e.g. for passwords) (defaults to false)
 ---@field on_submit fun(input: string) Callback function when user presses Enter
 ---  - Called with the user's input text
 ---@field on_cancel? fun() Callback function when user presses Escape

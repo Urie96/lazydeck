@@ -310,6 +310,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
             let prompt: String = opts.get("prompt").unwrap_or_else(|_| "".to_string());
             let placeholder: String = opts.get("placeholder").unwrap_or_else(|_| "".to_string());
             let value: String = opts.get("value").unwrap_or_else(|_| "".to_string());
+            let secret: bool = opts.get("secret").unwrap_or(false);
             let on_submit: LuaFunction = opts.get("on_submit")?;
 
             let on_cancel: LuaFunction = opts
@@ -325,6 +326,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
                     prompt,
                     placeholder,
                     value,
+                    secret,
                     on_submit,
                     on_cancel,
                     on_change,

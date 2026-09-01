@@ -370,6 +370,7 @@ impl App {
                 prompt,
                 placeholder,
                 value,
+                secret,
                 on_submit,
                 on_cancel,
                 on_change,
@@ -378,6 +379,7 @@ impl App {
                     prompt,
                     placeholder,
                     value,
+                    secret,
                     on_submit,
                     on_cancel,
                     on_change,
@@ -509,6 +511,7 @@ impl App {
             ":".to_string(),
             "输入命令...".to_string(),
             initial_value,
+            false,
             on_submit,
             on_cancel,
             on_change,
@@ -927,6 +930,7 @@ impl StatefulWidget for AppWidget {
 
             let mut input_state = InputDialogState::new(&dialog.prompt, &dialog.placeholder);
             input_state.text = dialog.text.clone();
+            input_state.secret = dialog.secret;
             input_state.cursor_position = dialog.cursor_position;
             InputDialogWidget::new().render(dialog_area, buf, &mut input_state);
 

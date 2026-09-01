@@ -55,6 +55,8 @@ pub enum Event {
         prompt: String,
         placeholder: String,
         value: String,
+        /// Whether the input should be masked (e.g. password entry)
+        secret: bool,
         on_submit: LuaFunction,
         on_cancel: LuaFunction,
         on_change: LuaFunction,

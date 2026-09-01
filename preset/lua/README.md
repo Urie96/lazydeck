@@ -117,7 +117,7 @@ local path = deck.fs.tempfile({ suffix = ".bin", content = deck.base64.decode(".
 deck.select(opts, on_selection)  -- 选择对话框
 deck.confirm(opts)              -- 确认对话框
 deck.notify(message)            -- 通知消息 (支持 string、Span、Line 或 Text 类型)
-deck.input(opts)                -- 显示输入对话框
+deck.input(opts)                -- 显示输入对话框（opts.secret = true 时输入会被掩码，适合密码）
 deck.input.show(opts)           -- 同上
 deck.input.get()                -- 获取当前输入框文本，未打开时返回 nil
 deck.input.set(value)           -- 设置当前输入框文本，并触发 on_change
@@ -546,6 +546,8 @@ return {
 ```lua
 deck.system.exec({cmd = {"ls", "-la"}, callback = function(out) end})
 deck.system.exec({"ls", "-la"}, function(out) end)
+-- 带 sudo 执行：先探测免密（sudo -n true），需要密码时弹出掩码输入框，密码经 stdin 喂给 sudo（sudo -S -p ''）
+deck.system.exec({"systemctl", "restart", "nginx"}, { sudo = true }, function(out) end)
 local pid = deck.system.spawn({"mpv", "--idle=yes"})
 deck.system.kill(pid) -- 默认发送 SIGTERM
 deck.system.executable("rustc")  -- 检查命令是否存在

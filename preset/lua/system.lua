@@ -6,10 +6,65 @@
 ---@class SystemOptions
 ---@field stdin string? Optional standard input to provide to the command
 ---@field env table<string, string>? Optional environment variables to set for the command
+---@field sudo boolean? Run the command with sudo. When true, first probes whether passwordless sudo is available (sudo -n true);
+---  if yes, runs `sudo <cmd>` directly; otherwise shows a password input dialog and pipes the password to sudo's stdin (`sudo -S -p ''`).
 ---@field callback fun(output: CommandOutput)? Callback function called on completion
 
 ---@class deck.system
 local system = {}
+
+---Run a command with sudo, following the suda.vim reference logic:
+---1. Probe passwordless sudo first: `sudo -n true` (succeeds when a valid sudo
+---   timestamp cache exists or NOPASSWD rules allow it).
+---2. If passwordless, run `sudo <cmd>` directly.
+---3. Otherwise show a secret input dialog for the password, then run
+---   `sudo -S -p '' <cmd>` with the password as the first line of stdin
+---   (`-S` reads the password from stdin instead of /dev/tty; `-p ''` keeps
+---   the prompt out of stdin). Any user-provided stdin is appended after the
+---   password line so it is passed through to the wrapped command.
+---@param args_table table Parsed args table (cmd, callback, stdin, env)
+---@param cmd string[] Original command without sudo
+local function exec_with_sudo(args_table, cmd)
+  _deck.system.exec {
+    cmd = { 'sudo', '-n', 'true' },
+    callback = function(probe)
+      if probe.code == 0 then
+        -- Passwordless sudo available: run directly
+        args_table.sudo = nil
+        args_table.cmd = { 'sudo' }
+        for _, part in ipairs(cmd) do
+          table.insert(args_table.cmd, part)
+        end
+        _deck.system.exec(args_table)
+        return
+      end
+
+      -- Password required: ask the user via a masked input dialog
+      deck.input {
+        prompt = 'sudo password',
+        placeholder = 'Enter sudo password',
+        secret = true,
+        on_submit = function(password)
+          if password == nil or password == '' then
+            args_table.callback { code = 1, stdout = '', stderr = 'sudo: no password provided' }
+            return
+          end
+          args_table.sudo = nil
+          args_table.cmd = { 'sudo', '-S', '-p', '' }
+          for _, part in ipairs(cmd) do
+            table.insert(args_table.cmd, part)
+          end
+          -- Password goes first; sudo consumes only the first line as password
+          args_table.stdin = password .. '\n' .. (args_table.stdin or '')
+          _deck.system.exec(args_table)
+        end,
+        on_cancel = function()
+          args_table.callback { code = 1, stdout = '', stderr = 'sudo: password entry cancelled' }
+        end,
+      }
+    end,
+  }
+end
 
 ---Execute an external command asynchronously (Lua wrapper)
 ---This wrapper provides multiple convenient call formats:
@@ -35,6 +90,7 @@ function system.exec(cmd, opts_or_callback, callback)
     -- deck.system.exec(cmd, opts, callback)
     if opts_or_callback.stdin ~= nil then args_table.stdin = opts_or_callback.stdin end
     if opts_or_callback.env ~= nil then args_table.env = opts_or_callback.env end
+    if opts_or_callback.sudo ~= nil then args_table.sudo = opts_or_callback.sudo end
     if type(callback) == 'function' then
       args_table.callback = callback
     elseif opts_or_callback.callback ~= nil then
@@ -44,6 +100,12 @@ function system.exec(cmd, opts_or_callback, callback)
     end
   else
     error 'Callback function is required'
+  end
+
+  -- Run with sudo: probe passwordless first, ask for password if needed
+  if args_table.sudo then
+    exec_with_sudo(args_table, cmd)
+    return
   end
 
   -- Call the Rust implementation
