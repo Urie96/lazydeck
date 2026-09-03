@@ -10,14 +10,11 @@ use ratatui::{
 };
 use tokio::sync::mpsc;
 
-use libc::{sigaction, sigemptyset, SIGINT, SIG_IGN};
-use std::mem;
-
 use crate::{
     confirm_handler,
     events::{Event, Events},
     input_handler, path_codec, plugin, select_handler,
-    term::{self, Term},
+    term::Term,
     widgets::{
         confirm::ConfirmWidget, footer::FooterWidget, header::HeaderWidget,
         input::InputDialogState, input::InputDialogWidget, list::ListWidget, select::SelectWidget,
@@ -112,6 +109,14 @@ impl App {
             if self.quitting {
                 plugin::flush_pending_cache()?;
                 break;
+            }
+
+            // 交互式命令结束后物理屏幕内容可能已被外部程序覆盖/清空，
+            // ratatui 的 diff 增量绘制不会重写相同单元格，需要清屏强制全量重绘。
+            if self.state.force_full_redraw {
+                self.term.clear()?;
+                self.state.force_full_redraw = false;
+                self.dirty = true;
             }
 
             if self.dirty {
@@ -317,32 +322,6 @@ impl App {
                     Ok(())
                 })?;
             }
-            Event::InteractiveCommand {
-                cmd,
-                on_complete,
-                wait_confirm,
-            } => {
-                // Execute the interactive command
-                let result = self.execute_interactive_command(cmd, wait_confirm);
-
-                self.dirty = true;
-
-                // Call the completion callback if provided
-                if let Some(cb) = on_complete {
-                    let exit_code = match result {
-                        Ok(code) => code,
-                        Err(e) => {
-                            // Log the error and use -1 as exit code
-                            eprintln!("Error executing interactive command: {}", e);
-                            -1
-                        }
-                    };
-                    plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
-                        cb.call::<()>(exit_code)?;
-                        Ok(())
-                    })?;
-                }
-            }
             Event::Notify(message) => {
                 self.state.push_notification(message);
                 self.dirty = true;
@@ -388,81 +367,6 @@ impl App {
             }
         }
         Ok(())
-    }
-
-    fn execute_interactive_command(
-        &mut self,
-        cmd: Vec<String>,
-        wait_confirm: Option<LuaFunction>,
-    ) -> Result<i32> {
-        if cmd.is_empty() {
-            bail!("Interactive command cannot be empty");
-        }
-
-        let mut it = cmd.iter();
-        let program = it.next().unwrap();
-        let args: Vec<&String> = it.collect();
-
-        // Temporarily ignore SIGINT during interactive command execution
-        // This prevents Ctrl-C from terminating lazydeck itself
-        let mut old_action: libc::sigaction = unsafe { mem::zeroed() };
-        let mut new_action: libc::sigaction = unsafe { mem::zeroed() };
-
-        unsafe {
-            // Get the current SIGINT handler
-            sigaction(SIGINT, std::ptr::null(), &mut old_action);
-
-            // Set SIGINT to ignore (SIG_IGN)
-            new_action.sa_sigaction = SIG_IGN;
-            sigemptyset(&mut new_action.sa_mask);
-            new_action.sa_flags = 0;
-            sigaction(SIGINT, &new_action, std::ptr::null_mut());
-        }
-
-        // Temporarily restore the terminal to let the subprocess take control
-        term::restore();
-
-        // Execute the command and wait for it to complete
-        let result = std::process::Command::new(program)
-            .args(&args)
-            .status()
-            .context(format!("Failed to execute command: {}", program))?;
-
-        let exit_code = result.code().unwrap_or(-1);
-
-        // Restore the original SIGINT handler
-        unsafe {
-            sigaction(SIGINT, &old_action, std::ptr::null_mut());
-        }
-
-        // If wait_confirm function is provided, call it to decide whether to wait
-        let should_wait = if let Some(ref wait_fn) = wait_confirm {
-            plugin::scope(&self.lua, &mut self.state, &self.event_sender, || {
-                let result: bool = wait_fn.call::<bool>(exit_code)?;
-                Ok(result)
-            })
-            .unwrap_or(false)
-        } else {
-            false
-        };
-
-        if should_wait {
-            println!("\nPress Enter to return to lazydeck...");
-            let _ = std::io::stdin().read_line(&mut String::new());
-        }
-
-        // Re-initialize the terminal for TUI
-        self.term = term::init()?;
-
-        // Clear any pending input events to prevent spurious key presses
-        // This handles the case where the subprocess (e.g., vim) leaves
-        // input in the terminal buffer that would otherwise be captured
-        while crossterm::event::poll(std::time::Duration::from_millis(10)).unwrap_or(false) {
-            let _ = crossterm::event::read();
-        }
-
-        // Return the exit code
-        Ok(exit_code)
     }
 
     fn resolve_command_path(current_path: &[String], raw_path: &str) -> Result<Vec<String>> {

@@ -1156,6 +1156,10 @@ pub struct TabSnapshot {
 #[derive(Default)]
 pub struct State {
     pub current_mode: Mode,
+    /// 交互式命令等外部程序结束后置位：渲染循环会在下次 draw 前清屏并全量重绘。
+    /// 原因是子进程退出后物理屏幕已被覆盖/清空，而 ratatui 默认按 diff 增量绘制，
+    /// 相同内容的单元格不会被重写，导致大片区域留白。
+    pub force_full_redraw: bool,
     tabs: Vec<TabSnapshot>,
     active_tab: usize,
     next_tab_id: u64,

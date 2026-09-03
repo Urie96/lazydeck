@@ -466,7 +466,7 @@ end
 | `deck.system.open(path)` | 用默认应用打开文件 |
 | `deck.system.edit(opts[, callback])` | 用外部编辑器编辑文件内容；传 `path` 时直接原地编辑该文件；不传 `path` 时可用 `ext` 指定临时文件后缀以启用语法高亮；传 callback 时回调接收 `(content, error)`，不传时 Rust 不会读取编辑后内容 |
 | `deck.system.exec(opts)` | 异步执行命令；`opts.sudo = true` 时先探测是否可免密 sudo（`sudo -n true`），若需密码则弹出掩码输入框，密码经 stdin 喂给 sudo（`sudo -S -p ''`） |
-| `deck.system.interactive(opts)` | 执行交互式命令 |
+| `deck.system.interactive(opts)` | 同步执行交互式命令（交还终端、阻塞直到退出，返回退出码；`wait_confirm`/`on_complete` 在返回前处理） |
 
 ### deck.socket - 长连接 Socket
 

@@ -34,11 +34,6 @@ pub enum Event {
     Crossterm(CrosstermEvent),
     AddKeymap(Keymap),
     LuaCallback(Box<dyn FnOnce(&Lua) -> mlua::Result<()>>),
-    InteractiveCommand {
-        cmd: Vec<String>,
-        on_complete: Option<LuaFunction>,
-        wait_confirm: Option<LuaFunction>,
-    },
     Notify(Text<'static>),
     ShowConfirm {
         title: Option<String>,

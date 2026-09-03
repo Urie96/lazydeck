@@ -303,14 +303,14 @@ deck.inspect(value, options)
 
 ### interactive.lua - 交互式命令
 
-封装交互式命令执行，支持多种调用格式：
+封装**同步**交互式命令执行：调用时交还终端运行命令，阻塞直到命令退出后才返回退出码（`on_complete` 回调在返回前同步调用），支持多种调用格式：
 
 ```lua
-deck.interactive({"cmd", "arg1"})
-deck.interactive({"cmd"}, callback)
-deck.interactive({"cmd"}, {wait_confirm = true})
-deck.interactive({"cmd"}, {wait_confirm = function(code) return code ~= 0 end})
-deck.interactive({"cmd"}, {wait_confirm = true}, callback)
+local code = deck.interactive({"cmd", "arg1"})
+local code = deck.interactive({"cmd"}, callback)
+local code = deck.interactive({"cmd"}, {wait_confirm = true})
+local code = deck.interactive({"cmd"}, {wait_confirm = function(code) return code ~= 0 end})
+local code = deck.interactive({"cmd"}, {wait_confirm = true}, callback)
 ```
 
 ### json.lua - JSON 处理

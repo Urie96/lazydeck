@@ -1,7 +1,9 @@
-use crate::{plugin, Event};
+use crate::{plugin, term, Event};
 use anyhow::{bail, Context};
+use libc::{sigaction, sigemptyset, SIGINT, SIG_IGN};
 use mlua::prelude::*;
 use std::fs;
+use std::mem;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
@@ -49,6 +51,92 @@ fn editor_tempfile_path(path_hint: Option<&str>, ext_hint: Option<&str>) -> Path
         suffix
     ));
     path
+}
+
+/// 同步执行交互式命令：交还终端 → 运行命令并阻塞等待退出 → 恢复 TUI。
+/// 返回子进程退出码；wait_confirm / on_complete 语义与原事件驱动版本一致，
+/// 但在返回给 Lua 调用方之前就地执行。
+fn run_interactive(
+    lua: &Lua,
+    cmd: &[String],
+    wait_confirm: Option<LuaFunction>,
+    on_complete: Option<LuaFunction>,
+) -> mlua::Result<i32> {
+    if cmd.is_empty() {
+        return Err(LuaError::RuntimeError(
+            "Interactive command cannot be empty".to_string(),
+        ));
+    }
+
+    let program = &cmd[0];
+    let args = &cmd[1..];
+
+    // Temporarily ignore SIGINT during interactive command execution
+    // This prevents Ctrl-C from terminating lazydeck itself
+    let mut old_action: libc::sigaction = unsafe { mem::zeroed() };
+    let mut new_action: libc::sigaction = unsafe { mem::zeroed() };
+    unsafe {
+        // Get the current SIGINT handler
+        sigaction(SIGINT, std::ptr::null(), &mut old_action);
+        // Set SIGINT to ignore (SIG_IGN)
+        new_action.sa_sigaction = SIG_IGN;
+        sigemptyset(&mut new_action.sa_mask);
+        new_action.sa_flags = 0;
+        sigaction(SIGINT, &new_action, std::ptr::null_mut());
+    }
+
+    // Temporarily restore the terminal to let the subprocess take control
+    term::restore();
+
+    // Execute the command and wait for it to complete
+    let result = std::process::Command::new(program).args(args).status();
+
+    // Restore the original SIGINT handler
+    unsafe {
+        sigaction(SIGINT, &old_action, std::ptr::null_mut());
+    }
+
+    let exit_code = match result {
+        Ok(status) => status.code().unwrap_or(-1),
+        Err(e) => {
+            eprintln!("Error executing interactive command: {}", e);
+            -1
+        }
+    };
+
+    // If wait_confirm function is provided, call it to decide whether to wait
+    if let Some(ref wait_fn) = wait_confirm {
+        let should_wait = wait_fn.call::<bool>(exit_code).unwrap_or(false);
+        if should_wait {
+            println!("\nPress Enter to return to lazydeck...");
+            let _ = std::io::stdin().read_line(&mut String::new());
+        }
+    }
+
+    // Re-initialize the terminal for TUI (raw mode + alternate screen)
+    term::init().map_err(LuaError::external)?;
+
+    // Clear any pending input events to prevent spurious key presses
+    // This handles the case where the subprocess (e.g., vim) leaves
+    // input in the terminal buffer that would otherwise be captured
+    while crossterm::event::poll(std::time::Duration::from_millis(10)).unwrap_or(false) {
+        let _ = crossterm::event::read();
+    }
+
+    // Call the completion callback if provided
+    if let Some(cb) = on_complete {
+        cb.call::<()>(exit_code)?;
+    }
+
+    // 子进程退出后物理屏幕可能残留外部程序输出，而 App 持有的 ratatui Terminal
+    // 仍按 diff 增量绘制（与进入交互前相同的单元格不会被重写）。
+    // 置位强制全量重绘标记，渲染循环会在下次 draw 前执行 term.clear()。
+    let _ = plugin::mut_scope_state(lua, |state| {
+        state.force_full_redraw = true;
+        Ok(())
+    });
+
+    Ok(exit_code)
 }
 
 /// Create the deck.system table with executable, open, exec, spawn, and kill functions
@@ -136,14 +224,9 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
                 None
             };
 
-            plugin::send_event(
-                lua,
-                Event::InteractiveCommand {
-                    cmd,
-                    on_complete,
-                    wait_confirm: None,
-                },
-            )
+            // 同步执行编辑器（阻塞直到退出），退出后读取内容并回调
+            run_interactive(lua, &cmd, None, on_complete)?;
+            Ok(())
         })?;
 
     // Add executable function
@@ -325,14 +408,8 @@ pub(super) fn new_table(lua: &Lua) -> mlua::Result<LuaTable> {
             let on_complete: Option<LuaFunction> = args.get("on_complete").ok();
             let wait_confirm: Option<LuaFunction> = args.get("wait_confirm").ok();
 
-            plugin::send_event(
-                lua,
-                Event::InteractiveCommand {
-                    cmd,
-                    on_complete,
-                    wait_confirm,
-                },
-            )
+            // 同步执行：交还终端运行命令（阻塞），完成后返回退出码
+            run_interactive(lua, &cmd, wait_confirm, on_complete)
         })?
         .into_lua(lua)?,
     )?;

@@ -75,7 +75,6 @@ src/
 | `Crossterm(e)`       | 终端输入事件   |
 | `AddKeymap(km)`      | 添加键盘映射   |
 | `LuaCallback(f)`     | Lua 回调       |
-| `InteractiveCommand` | 执行交互式命令 |
 | `Notify(msg)`        | 显示通知       |
 | `ExpireNotification(id)` | 移除到期通知 |
 | `ShowConfirm`        | 显示确认对话框 |

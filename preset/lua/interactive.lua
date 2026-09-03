@@ -11,8 +11,10 @@
 ---@field on_complete fun(exit_code: number)? Optional callback function called when command exits
 
 ---Execute a command in interactive mode (with terminal access)
----This Lua wrapper provides multiple convenient call formats:
----Usage 1: deck.interactive({"cmd", "arg1", "arg2"})
+---This call is BLOCKING: the terminal is handed over to the command and control
+---only returns to lazydeck after the command exits. The exit code is returned to
+---the caller, and on_complete (if given) is invoked before the call returns.
+---Usage 1: local code = deck.interactive({"cmd", "arg1", "arg2"})
 ---Usage 2: deck.interactive({"cmd", "arg1", "arg2"}, callback)
 ---Usage 3: deck.interactive({"cmd", "arg1", "arg2"}, {wait_confirm = true})
 ---Usage 4: deck.interactive({"cmd", "arg1", "arg2"}, {wait_confirm = function(code) return code ~= 0 end})
@@ -30,6 +32,7 @@
 ---@param cmd string[] The command and its arguments
 ---@param opts_or_callback InteractiveOptions|fun(exit_code: number)? Either options table or callback function
 ---@param callback fun(exit_code: number)? Optional callback function called when command exits
+---@return integer exit_code The exit code of the executed command
 function deck.interactive(cmd, opts_or_callback, callback)
   -- Parse arguments:
   -- deck.interactive(cmd)
@@ -60,6 +63,6 @@ function deck.interactive(cmd, opts_or_callback, callback)
     end
   end
 
-  -- Call the Rust implementation with the table
-  _deck.system.interactive(args_table)
+  -- Call the Rust implementation (synchronous: blocks until the command exits)
+  return _deck.system.interactive(args_table)
 end
