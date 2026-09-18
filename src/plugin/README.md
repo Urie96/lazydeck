@@ -32,7 +32,7 @@ src/plugin/
 
 负责初始化 Lua 环境和加载预设文件：
 
-- `init_lua()` - 初始化 Lua 环境并设置配置基准目录
+- `init_lua(lua, config_file)` - 初始化 Lua 环境、加载预设，并在最后由 Rust 直接读文件执行用户配置（`config_file` 为 `None` 时用默认的 `<config_dir>/init.lua`）；不走 `require 'init'`，所以不会被 `package.loaded` 缓存
 - 预设加载顺序包含 `system.lua`、`json.lua`、`promise.lua`、`config.lua` 等基础模块
 - `package.path` 由 `preset/lua/config.lua` 根据 `plugins` 配置动态追加
 
@@ -43,16 +43,16 @@ src/plugin/
 | 来源 | 路径 | 说明 |
 |------|------|------|
 | 本地（显式 `dir`） | 配置中的相对/绝对路径 | 通过 `{ dir = '...' }` 注入到 `package.path` |
-| **远程** | `~/.local/share/lazydeck/plugins/` | **从 GitHub 下载的插件** |
+| **远程** | `$XDG_DATA_HOME/lazydeck/plugins/`（默认 `~/.local/share/lazydeck/plugins/`） | **从 GitHub 下载的插件** |
 | 预设 | `preset/lua/` | 内置预设脚本（嵌入二进制） |
 
 **远程插件目录结构**：
 ```
-~/.local/share/lazydeck/plugins/
+$XDG_DATA_HOME/lazydeck/plugins/
 └── owner-plugin.lazydeck/
     └── owner-plugin/
         └── init.lua       # 插件入口
-~/.config/lazydeck/plugins.lock        # 插件版本锁文件
+$XDG_CONFIG_HOME/lazydeck/plugins.lock        # 插件版本锁文件
 ```
 
 加载预设文件（debug 模式从文件读取，release 模式从嵌入的二进制读取）：
@@ -77,6 +77,26 @@ scope(lua, state, sender, || {
 ## LC API
 
 全局表 `deck` 提供以下子系统：
+
+### deck.stdpath - 目录
+
+`deck.stdpath(kind)` 返回 lazydeck 目录的绝对路径，`kind` 为 `'config'` / `'data'` / `'state'` / `'cache'`。
+
+lazydeck 的所有目录都按 XDG Base Directory 规范解析，环境变量仅在值为绝对路径时生效，否则回退到默认位置：
+
+| kind | 环境变量 | 默认值 | 用途 |
+|------|----------|--------|------|
+| `'config'` | `XDG_CONFIG_HOME` | `~/.config/lazydeck` | 用户 `init.lua`、`plugins.lock` |
+| `'data'` | `XDG_DATA_HOME` | `~/.local/share/lazydeck` | 插件安装目录 `<data>/plugins` |
+| `'state'` | `XDG_STATE_HOME` | `~/.local/state/lazydeck` | `lazydeck.log`、`lua.log` |
+| `'cache'` | `XDG_CACHE_HOME` | `~/.cache/lazydeck` | `deck.cache`、`deck.secrets`、图片预览缓存 |
+
+```lua
+local cache_dir = deck.stdpath 'cache'
+local data_dir = deck.stdpath 'data'
+```
+
+路径由 Rust 侧的 `src/paths.rs` 解析，每次调用都重新读取环境变量（不缓存），未知 `kind` 会报错。注意 `--config` 只影响加载哪个 `init.lua`，不会改变 `deck.stdpath('config')`。
 
 ### deck.api - 页面管理
 
@@ -160,7 +180,7 @@ local data = deck.cache.get("github.releases", "user_data")
 
 ### deck.secrets - Secrets 存储
 
-用于保存敏感字符串，按 namespace 分文件存储到 `~/.config/lazydeck/secrets/`。和 `deck.cache` 不同，`deck.secrets` 只接受字符串值，不支持 TTL。
+用于保存敏感字符串，按 namespace 分文件存储到 `$XDG_CACHE_HOME/lazydeck/secrets/`（默认 `~/.cache/lazydeck/secrets/`；文件权限 `0600`，目录权限 `0700`）。和 `deck.cache` 不同，`deck.secrets` 只接受字符串值，不支持 TTL。
 
 | 函数 | 说明 |
 |------|------|

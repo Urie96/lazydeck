@@ -10,11 +10,7 @@ const FLUSH_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Get the cache directory path.
 fn get_cache_dir() -> PathBuf {
-    if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".cache/lazydeck/cache")
-    } else {
-        std::env::temp_dir().join("lazydeck_cache")
-    }
+    crate::paths::cache_dir().join("cache")
 }
 
 fn namespace_to_filename(namespace: &str) -> mlua::Result<String> {

@@ -18,6 +18,7 @@ src/
 ├── select_handler.rs  # 选择对话框处理
 ├── term.rs           # 终端初始化和恢复
 ├── log.rs            # 日志系统
+├── paths.rs          # XDG 目录解析（config/data/state/cache）
 ├── errors.rs         # 错误处理和 panic 钩子
 ├── plugin/           # Lua 插件系统
 │   ├── mod.rs
@@ -92,11 +93,12 @@ term::init()            # 初始化终端
 parse_cli_options()     # 解析命令行参数（--help / --version / --config / --eval / 可选初始路径）
     │
     ▼
-App::new(initial_path, eval_scripts)
+App::new(initial_path, eval_scripts, config_file)
     │
     ├─ 创建 State
     ├─ 初始化 Lua
-    └─ 加载预设脚本
+    ├─ 加载预设脚本
+    └─ 加载用户配置文件
     │
     ▼
 App::run(events)
@@ -256,14 +258,14 @@ Event::LuaCallback(Box::new(move |lua| {
 ## 日志系统
 
 - 通知不再依赖高频 Render 轮询过期，而是在创建时注册一次性延迟回调，到期后发送事件移除。
-- **Rust 日志**：`~/.local/state/lazydeck/lazydeck.log`
+- **Rust 日志**：`$XDG_STATE_HOME/lazydeck/lazydeck.log`（默认 `~/.local/state/lazydeck/lazydeck.log`）
 - 使用 `tracing` 库
 - 非阻塞写入
 
 ### 查看日志
 
 ```bash
-tail -f ~/.local/state/lazydeck/lazydeck.log
+tail -f "$XDG_STATE_HOME/lazydeck/lazydeck.log"   # 默认 ~/.local/state/lazydeck/lazydeck.log
 ```
 
 ## 错误处理

@@ -1,8 +1,14 @@
 use mlua::Lua;
+use std::path::Path;
 
 use super::deck;
 
-pub fn init_lua(lua: &Lua) -> mlua::Result<()> {
+/// 初始化 Lua 环境：注册 `_deck` API、加载预设，最后加载用户配置。
+///
+/// `config_file` 为 `--config` 指定的文件；为 `None` 时使用默认的
+/// `<config_dir>/init.lua`（`deck.stdpath('config')`）。用户配置始终是
+/// 直接读文件并一次性执行，不走 `require 'init'`。
+pub fn init_lua(lua: &Lua, config_file: Option<&Path>) -> mlua::Result<()> {
     deck::register(lua)?;
 
     macro_rules! preset {
@@ -41,6 +47,7 @@ pub fn init_lua(lua: &Lua) -> mlua::Result<()> {
     load_preset!("system")?;
     load_preset!("copy_from_neovim")?;
     load_preset!("socket")?;
+    load_preset!("stdpath")?;
     load_preset!("component")?;
     load_preset!("api")?;
     load_preset!("style")?;
@@ -66,7 +73,41 @@ pub fn init_lua(lua: &Lua) -> mlua::Result<()> {
     load_preset!("plugin_manager")?;
     load_preset!("manager")?;
     load_preset!("config")?;
-    Ok(())
+
+    load_user_config(lua, config_file)
+}
+
+/// 加载用户配置：直接读文件并一次性执行（不经 `require`，因此不会被
+/// `package.loaded` 缓存，也不会被 `package.path` 上的同名 `init` 模块遮蔽）。
+fn load_user_config(lua: &Lua, config_file: Option<&Path>) -> mlua::Result<()> {
+    let path = config_file
+        .map(Path::to_path_buf)
+        .unwrap_or_else(crate::paths::config_file);
+
+    let source = std::fs::read(&path).map_err(|err| {
+        mlua::Error::RuntimeError(format!(
+            "Failed to read config file '{}': {err}",
+            path.display()
+        ))
+    })?;
+
+    lua.load(strip_lua_loader_prefix(&source))
+        .set_name(path.to_string_lossy())
+        .exec()
+}
+
+/// `loadfile` 会跳过 UTF-8 BOM 和可执行文件首行的 `#!`；从 Rust 加载时手动保持一致。
+fn strip_lua_loader_prefix(source: &[u8]) -> &[u8] {
+    let mut source = source.strip_prefix(b"\xef\xbb\xbf").unwrap_or(source);
+
+    if source.first() == Some(&b'#') {
+        source = match source.iter().position(|byte| *byte == b'\n') {
+            Some(newline) => &source[newline + 1..],
+            None => &[],
+        };
+    }
+
+    source
 }
 
 #[cfg(test)]
@@ -273,6 +314,10 @@ mod tests {
             })?,
         )?;
         deck.set("style", style)?;
+        deck.set(
+            "stdpath",
+            lua.create_function(|_, kind: String| Ok(format!("/tmp/lazydeck-test/{kind}")))?,
+        )?;
         globals.set("deck", deck)?;
 
         let raw_deck = lua.create_table()?;
@@ -434,6 +479,43 @@ mod tests {
             preview_call_count,
             notifications,
         })
+    }
+
+    #[test]
+    fn load_user_config_executes_file_once_per_call() -> mlua::Result<()> {
+        let dir = std::env::temp_dir().join(format!(
+            "lazydeck-load-user-config-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).map_err(mlua::Error::external)?;
+        let path = dir.join("init.lua");
+        std::fs::write(&path, "counter = (counter or 0) + 1").map_err(mlua::Error::external)?;
+
+        let lua = Lua::new();
+        load_user_config(&lua, Some(&path))?;
+        load_user_config(&lua, Some(&path))?;
+
+        // 不走 `require`，所以每次调用都会重新执行
+        let counter: i64 = lua.globals().get("counter")?;
+        assert_eq!(counter, 2);
+
+        std::fs::remove_dir_all(&dir).map_err(mlua::Error::external)?;
+        Ok(())
+    }
+
+    #[test]
+    fn strip_lua_loader_prefix_handles_bom_and_shebang() {
+        assert_eq!(strip_lua_loader_prefix(b"return 1"), b"return 1");
+        assert_eq!(strip_lua_loader_prefix(b"\xef\xbb\xbfreturn 1"), b"return 1");
+        assert_eq!(
+            strip_lua_loader_prefix(b"#!/usr/bin/env lua\nreturn 1"),
+            b"return 1"
+        );
+        assert_eq!(
+            strip_lua_loader_prefix(b"\xef\xbb\xbf#!/usr/bin/env lua\nreturn 1"),
+            b"return 1"
+        );
+        assert_eq!(strip_lua_loader_prefix(b"#!/usr/bin/env lua"), b"");
     }
 
     #[test]

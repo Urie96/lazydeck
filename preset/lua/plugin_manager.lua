@@ -4,8 +4,8 @@
 local pm = {}
 
 -- Plugin data directory and lock file path
-pm.config_dir = os.getenv('HOME') .. '/.config/lazydeck'
-pm.data_dir = os.getenv('HOME') .. '/.local/share/lazydeck/plugins'
+pm.config_dir = deck.stdpath 'config'
+pm.data_dir = deck.stdpath 'data' .. '/plugins'
 pm.lock_file = pm.config_dir .. '/plugins.lock'
 
 local git_env = {
@@ -76,7 +76,7 @@ local function resolve_local_dir(dir)
 
   if is_absolute_path(dir) then return dir end
 
-  local base_dir = os.getenv('HOME') .. '/.config/lazydeck'
+  local base_dir = deck.stdpath 'config'
   return base_dir .. '/' .. dir
 end
 

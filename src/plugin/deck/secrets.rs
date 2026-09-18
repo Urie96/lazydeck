@@ -14,11 +14,7 @@ struct SecretStore {
 }
 
 fn get_secrets_dir() -> PathBuf {
-    if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".config/lazydeck/secrets")
-    } else {
-        std::env::temp_dir().join("lazydeck_secrets")
-    }
+    crate::paths::cache_dir().join("secrets")
 }
 
 fn ensure_non_empty(label: &str, value: &str) -> mlua::Result<()> {

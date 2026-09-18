@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, env, path::Path};
+use std::cell::OnceCell;
 
 use anyhow::Context;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -12,9 +12,12 @@ pub(super) struct Logs;
 
 impl Logs {
     pub(super) fn start() -> anyhow::Result<()> {
-        let state_dir = Path::new(&env::var("HOME").unwrap()).join(".local/state/lazydeck");
+        let log_file = crate::paths::rust_log_file();
+        let state_dir = log_file
+            .parent()
+            .context("failed to resolve log directory")?;
 
-        std::fs::create_dir_all(&state_dir)
+        std::fs::create_dir_all(state_dir)
             .with_context(|| format!("failed to create state directory: {state_dir:?}"))?;
 
         let appender = tracing_appender::rolling::never(state_dir, "lazydeck.log");

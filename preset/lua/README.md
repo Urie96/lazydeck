@@ -18,6 +18,7 @@ preset/lua/
 ├── http.lua          # HTTP API 封装
 ├── http_server.lua   # 本地 HTTP 服务封装
 ├── config.lua        # 初始化脚本（默认配置和键盘映射）
+├── stdpath.lua       # 目录 API 封装（XDG 路径）
 ├── inspect.lua       # 调试工具（表结构可视化）
 ├── interactive.lua   # 交互式命令封装
 ├── json.lua          # JSON 编解码
@@ -215,6 +216,17 @@ deck.path.join(path_list)      -- 合并路径数组
 deck.path.match(path, pattern) -- 判断 path 是否匹配 pattern，支持 * / **
 ```
 
+### stdpath.lua - 目录（XDG）
+
+`deck.stdpath(kind)` 按 XDG Base Directory 规范返回 lazydeck 目录（环境变量只在值为绝对路径时生效，否则回退到默认位置），每次调用都会重新解析：
+
+```lua
+deck.stdpath 'config' -- 配置目录（$XDG_CONFIG_HOME/lazydeck，默认 ~/.config/lazydeck）
+deck.stdpath 'data'   -- 数据目录（$XDG_DATA_HOME/lazydeck，默认 ~/.local/share/lazydeck）
+deck.stdpath 'state'  -- 状态目录（$XDG_STATE_HOME/lazydeck，默认 ~/.local/state/lazydeck）
+deck.stdpath 'cache'  -- 缓存目录（$XDG_CACHE_HOME/lazydeck，默认 ~/.cache/lazydeck）
+```
+
 ### url.lua - URL 编解码
 
 URL 百分号编码封装：
@@ -234,7 +246,7 @@ deck.url.decode("hello%20world") -- "hello world"
 - 插件 spec 可设置 `lazy = false`，在 `deck.config` 调用时立即加载并执行 `config/setup`，适合通知历史等需要启动即初始化的插件
 - 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；根路径展示插件时如果缓存不存在，会尝试加载插件并缓存 meta；插件不存在/`require` 失败时不写缓存，插件存在但未实现 `meta()` 时缓存空 meta 到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
-- 加载用户配置：默认加载 `~/.config/lazydeck/init.lua`；文件不存在时 Rust 入口会先打印配置提示并退出，也支持通过 `LAZYDECK_CONFIG_FILE` 指定单个配置文件
+- 加载用户配置：由 Rust 入口在预设加载完后执行 `--config` 指定的文件（未指定时为默认的 `$XDG_CONFIG_HOME/lazydeck/init.lua`，即未设置 `XDG_CONFIG_HOME` 时的 `~/.config/lazydeck/init.lua`）；文件不存在时 Rust 入口会先打印配置提示并退出
 - 实现 `deck._list()` 和 `deck._preview()` 入口函数
 
 根页面插件排序配置：
@@ -618,7 +630,7 @@ deck.list_extend(dst, src)              -- 列表追加
 local spec = deck._pm.parse_plugin_spec('owner/plugin.lazydeck')
 -- spec.name = 'plugin'
 -- spec.url = 'https://github.com/owner/plugin.lazydeck.git'
--- spec.install_path = '~/.local/share/lazydeck/plugins/plugin.lazydeck'
+-- spec.install_path = '$XDG_DATA_HOME/lazydeck/plugins/plugin.lazydeck'
 -- spec.config = auto-generated function() require('plugin').setup() end
 -- spec.lazy = true
 
@@ -680,31 +692,32 @@ Lua 语言服务器类型声明文件，为 IDE 提供类型提示。
 1. `system.lua`
 2. `copy_from_neovim.lua`
 3. `socket.lua`
-4. `component.lua`
-5. `api.lua`
-6. `style.lua`
-7. `interactive.lua`
-8. `string.lua`
-9. `inspect.lua`
-10. `json.lua`
-11. `promise.lua`
-12. `time.lua`
-13. `keymap.lua`
-14. `html.lua`
-15. `http.lua`
-16. `http_server.lua`
-17. `cache.lua`
-18. `fs.lua`
-19. `hash.lua`
-20. `util.lua`
-21. `base64.lua`
-22. `url.lua`
-23. `clipboard.lua`
-24. `secrets.lua`
-25. `yaml.lua`
-26. `plugin_manager.lua` ← 插件管理核心逻辑（提供 `deck._pm`）
-27. `manager.lua` ← 插件管理器 UI（提供 `deck._manager`）
-28. `config.lua` ← 最后加载，执行初始化逻辑
+4. `stdpath.lua`
+5. `component.lua`
+6. `api.lua`
+7. `style.lua`
+8. `interactive.lua`
+9. `string.lua`
+10. `inspect.lua`
+11. `json.lua`
+12. `promise.lua`
+13. `time.lua`
+14. `keymap.lua`
+15. `html.lua`
+16. `http.lua`
+17. `http_server.lua`
+18. `cache.lua`
+19. `fs.lua`
+20. `hash.lua`
+21. `util.lua`
+22. `base64.lua`
+23. `url.lua`
+24. `clipboard.lua`
+25. `secrets.lua`
+26. `yaml.lua`
+27. `plugin_manager.lua` ← 插件管理核心逻辑（提供 `deck._pm`）
+28. `manager.lua` ← 插件管理器 UI（提供 `deck._manager`）
+29. `config.lua` ← 最后加载，执行初始化逻辑
 
 ## 使用示例
 

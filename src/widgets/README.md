@@ -63,7 +63,7 @@ let paragraph = StatefulParagraph::from(text);
 - 终端不支持原生协议时，使用 truecolor 半块字符（`▀` / `▄`）渲染
 - 若终端支持原生协议，但图片被滚动裁切，或当前有对话框导致 native render 被禁用，则保留布局占位但不渲染图片内容
 - 可和文本一起放进数组做图文混排
-- 终端协议编码结果会缓存在 `~/.cache/lazydeck/prepared-images/`，避免重复 decode/resize/encode
+- 终端协议编码结果会缓存在 `$XDG_CACHE_HOME/lazydeck/prepared-images/`（默认 `~/.cache/lazydeck/prepared-images/`），避免重复 decode/resize/encode
 
 ### ListWidget
 

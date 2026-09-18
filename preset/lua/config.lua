@@ -48,8 +48,7 @@ end
 
 local function add_config_base_path()
   local package = require 'package'
-  local base_dir = os.getenv 'LAZYDECK_CONFIG_BASE_DIR'
-    or (os.getenv 'HOME' .. '/.config/lazydeck')
+  local base_dir = deck.stdpath 'config'
 
   local paths = { package.path }
   local seen = {}
@@ -550,12 +549,3 @@ function deck.plugin.load(name) return setup_plugin(name) end
 setmetatable(deck.config, {
   __call = function(self, opt) deck.config.setup(opt) end,
 })
-
-local config_file = os.getenv 'LAZYDECK_CONFIG_FILE'
-if config_file and config_file ~= '' then
-  local chunk, err = loadfile(config_file)
-  if not chunk then error(err) end
-  chunk()
-else
-  require 'init'
-end

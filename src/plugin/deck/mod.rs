@@ -15,6 +15,7 @@ mod path;
 mod plugin_manager;
 mod secrets;
 mod socket;
+mod stdpath;
 mod style;
 mod system;
 mod time;
@@ -34,11 +35,7 @@ use tokio::time::sleep;
 
 /// Get the log file path for Lua plugin logs
 fn get_log_path() -> PathBuf {
-    if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".local/state/lazydeck/lua.log")
-    } else {
-        std::env::temp_dir().join("lazydeck.log")
-    }
+    crate::paths::lua_log_file()
 }
 
 /// Write a log entry to the log file
@@ -81,6 +78,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
     let path = path::new_table(lua)?.into_lua(lua)?;
     let secrets = secrets::new_table(lua)?.into_lua(lua)?;
     let socket = socket::new_table(lua)?.into_lua(lua)?;
+    let stdpath = stdpath::new_function(lua)?.into_lua(lua)?;
     let time = time::new_table(lua)?.into_lua(lua)?;
     let url = url::new_table(lua)?.into_lua(lua)?;
     let json = json::new_table(lua)?.into_lua(lua)?;
@@ -390,6 +388,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         ("split", split),
         ("system", mlua::Value::Table(system_tbl)),
         ("socket", socket),
+        ("stdpath", stdpath),
         ("path", path),
         ("secrets", secrets),
         ("time", time),

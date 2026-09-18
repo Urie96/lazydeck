@@ -5,8 +5,7 @@ mod tests {
     /// Inline Lua implementation of parse_plugin_spec and flatten_plugins for testing.
     /// Must be kept in sync with preset/lua/plugin_manager.lua
     const TEST_LUA: &str = r#"
-local data_dir = os.getenv('HOME') .. '/.local/share/lazydeck/plugins'
-local __lazydeck_config_base_dir = (__lazydeck_test_tmpdir:gsub('[/\\]+$', '')) .. '/lazydeck-tests'
+local data_dir = deck.stdpath('data') .. '/plugins'
 
 local function is_absolute_path(path)
   return path:match '^/' or path:match '^%a:[/\\]'
@@ -23,7 +22,7 @@ local function resolve_local_dir(dir)
 
   if is_absolute_path(dir) then return dir end
 
-  return __lazydeck_config_base_dir .. '/' .. dir
+  return deck.stdpath('config') .. '/' .. dir
 end
 
 local function plugin_name_from_dir(dir)
@@ -138,6 +137,29 @@ return { parse = parse_plugin_spec, flatten = flatten_plugins, remotes = get_rem
             "__lazydeck_test_tmpdir",
             std::env::temp_dir().to_string_lossy().to_string(),
         )?;
+
+        // 与 `preset/lua/plugin_manager.lua` 一致：目录来自 Rust 侧的 `deck.stdpath`。
+        let deck = lua.create_table()?;
+        deck.set(
+            "stdpath",
+            lua.create_function(|lua, kind: String| {
+                let tmpdir: String = lua.globals().get("__lazydeck_test_tmpdir")?;
+                let suffix = match kind.as_str() {
+                    "config" => "lazydeck-tests",
+                    "data" => "lazydeck-tests-data",
+                    "state" => "lazydeck-tests-state",
+                    "cache" => "lazydeck-tests-cache",
+                    other => {
+                        return Err(mlua::Error::runtime(format!(
+                            "unknown stdpath kind '{other}'"
+                        )))
+                    }
+                };
+                Ok(format!("{}/{}", tmpdir.trim_end_matches('/'), suffix))
+            })?,
+        )?;
+        lua.globals().set("deck", deck)?;
+
         let module: mlua::Table = lua.load(TEST_LUA).eval()?;
         let parse: mlua::Function = module.get("parse")?;
         let flatten: mlua::Function = module.get("flatten")?;

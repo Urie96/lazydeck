@@ -49,8 +49,8 @@ lazydeck/
 │   ├── lua/              # Lua 预设脚本
 │   ├── syntaxes/         # 语法高亮定义
 │   └── themes/           # 颜色主题
-├── config -> ~/.config/lazydeck/        # 用户配置（软链接）
-└── plugins -> ~/.local/share/lazydeck/plugins/  # 插件目录（软链接）
+├── config -> $XDG_CONFIG_HOME/lazydeck/        # 用户配置（软链接，默认 ~/.config/lazydeck）
+└── plugins -> $XDG_DATA_HOME/lazydeck/plugins/  # 插件目录（软链接，默认 ~/.local/share/lazydeck/plugins）
 ```
 
 > 项目中的 `./plugins` 和 `./config` 目录具有写权限，可以直接调用工具（write、edit）创建或修改文件，无需请求提权。
@@ -139,10 +139,10 @@ lazydeck                     # 启动 lazydeck，进入插件管理器
 
 ```bash
 # 查看 Rust 日志
-tail -f ~/.local/state/lazydeck/lazydeck.log
+tail -f "$XDG_STATE_HOME/lazydeck/lazydeck.log"   # 默认 ~/.local/state/lazydeck/lazydeck.log
 
 # 查看 Lua 日志
-tail -f ~/.local/state/lazydeck/lua.log
+tail -f "$XDG_STATE_HOME/lazydeck/lua.log"        # 默认 ~/.local/state/lazydeck/lua.log
 ```
 
 ## 使用 tmux 测试 TUI

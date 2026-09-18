@@ -64,8 +64,8 @@ cargo run --release -- /docker/container
 cargo run --release -- --eval "deck.notify('hello from cli')" /docker/container
 
 # 使用自定义配置文件或配置目录
-cargo run --release -- --config ~/.config/lazydeck/init.lua
-cargo run --release -- --config ~/.config/lazydeck
+cargo run --release -- --config "$XDG_CONFIG_HOME/lazydeck/init.lua"
+cargo run --release -- --config "$XDG_CONFIG_HOME/lazydeck"
 ```
 
 ## 项目结构
@@ -215,7 +215,7 @@ lazydeck 自带多个示例插件：
 
 ## 配置
 
-在 `config/init.lua` 中配置（对应 `~/.config/lazydeck/init.lua`）。也可以用 `lazydeck -c/--config` 指定其他配置文件或配置目录；需要启动后临时执行 Lua 时，可用 `lazydeck -e/--eval "deck.notify('hi')" [initial-path]`：
+在 `config/init.lua` 中配置（对应 `$XDG_CONFIG_HOME/lazydeck/init.lua`，未设置 `XDG_CONFIG_HOME` 时为 `~/.config/lazydeck/init.lua`）。也可以用 `lazydeck -c/--config` 指定其他配置文件或配置目录；需要启动后临时执行 Lua 时，可用 `lazydeck -e/--eval "deck.notify('hi')" [initial-path]`：
 
 ```lua
 deck.config {
@@ -250,7 +250,7 @@ deck.config {
 
     -- 本地目录插件：必须显式使用 dir
     {
-      dir = 'plugins/myplugin.lazydeck',   -- 相对路径基于 ~/.config/lazydeck/
+      dir = 'plugins/myplugin.lazydeck',   -- 相对路径基于 $XDG_CONFIG_HOME/lazydeck/（默认 ~/.config/lazydeck/）
     },
     {
       'myplugin',
@@ -341,8 +341,8 @@ lazydeck /docker/container   # 启动后直接进入指定页面
 
 **数据目录**：
 
-- 插件安装目录：`~/.local/share/lazydeck/plugins/`
-- 锁文件：`~/.config/lazydeck/plugins.lock`
+- 插件安装目录：`$XDG_DATA_HOME/lazydeck/plugins/`（默认 `~/.local/share/lazydeck/plugins/`）
+- 锁文件：`$XDG_CONFIG_HOME/lazydeck/plugins.lock`（默认 `~/.config/lazydeck/plugins.lock`）
 
 **远程插件认证**：
 
@@ -351,6 +351,19 @@ lazydeck /docker/container   # 启动后直接进入指定页面
 - 若凭据缺失，插件管理器会直接报错而不是在预览区显示 `Username for 'https://github.com'`
 
 锁文件记录了每个插件安装时的具体 commit，下次可以通过 `S` 恢复。
+
+## 目录
+
+lazydeck 的目录全部遵循 [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/latest/) 规范。环境变量只在其值为绝对路径时生效，否则回退到下表默认位置（`$HOME` 也不存在时回退到系统临时目录）：
+
+| 环境变量 | 默认位置 | 用途 |
+| -------- | -------- | ---- |
+| `XDG_CONFIG_HOME` | `~/.config/lazydeck` | 用户 `init.lua`、`plugins.lock` |
+| `XDG_DATA_HOME` | `~/.local/share/lazydeck` | 插件安装目录 `<data>/plugins` |
+| `XDG_STATE_HOME` | `~/.local/state/lazydeck` | `lazydeck.log`、`lua.log` |
+| `XDG_CACHE_HOME` | `~/.cache/lazydeck` | `deck.cache`、`deck.secrets`、图片预览缓存 |
+
+Lua 插件可通过 `deck.stdpath('config' | 'data' | 'state' | 'cache')` 读取同样的路径（每次调用都会重新解析）。
 
 ## 文档
 
@@ -373,11 +386,11 @@ lazydeck /docker/container   # 启动后直接进入指定页面
 
 ## 开发
 
-配置和插件通过软链接访问：
+配置和插件通过软链接访问（路径遵循 XDG 环境变量）：
 
 ```bash
-config/    -> ~/.config/lazydeck/      # 用户配置
-plugins/   -> ~/.local/share/lazydeck/plugins/  # 插件安装目录
+config/    -> $XDG_CONFIG_HOME/lazydeck/          # 用户配置（默认 ~/.config/lazydeck/）
+plugins/   -> $XDG_DATA_HOME/lazydeck/plugins/     # 插件安装目录（默认 ~/.local/share/lazydeck/plugins/）
 ```
 
 修改配置或开发插件时，直接编辑这些目录下的文件。
@@ -386,10 +399,10 @@ plugins/   -> ~/.local/share/lazydeck/plugins/  # 插件安装目录
 
 ```bash
 # 查看 Rust 日志
-tail -f ~/.local/state/lazydeck/lazydeck.log
+tail -f "$XDG_STATE_HOME/lazydeck/lazydeck.log"   # 默认 ~/.local/state/lazydeck/lazydeck.log
 
 # 查看 Lua 日志
-tail -f ~/.local/state/lazydeck/lua.log
+tail -f "$XDG_STATE_HOME/lazydeck/lua.log"        # 默认 ~/.local/state/lazydeck/lua.log
 ```
 
 ## 贡献

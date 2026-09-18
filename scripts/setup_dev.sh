@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PRESET_DIR="$PROJECT_ROOT/preset/lua"
-PLUGINS_DIR="$HOME/.local/share/lazydeck/plugins"
+PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/lazydeck/plugins"
 LUARC_FILE="${PLUGINS_DIR}/.luarc.json"
 
 # 收集所有路径
@@ -54,5 +54,5 @@ echo "  - ${#paths[@]} 个路径已配置"
 [[ -d config && ! -L config ]] && rm -rf config
 [[ -d plugins && ! -L plugins ]] && rm -rf plugins
 
-[[ ! -e config ]] && ln -s ~/.config/lazydeck/ ./config
-[[ ! -e plugins ]] && ln -s ~/.local/share/lazydeck/plugins/ ./plugins
+[[ ! -e config ]] && ln -s "${XDG_CONFIG_HOME:-$HOME/.config}/lazydeck" ./config
+[[ ! -e plugins ]] && ln -s "${XDG_DATA_HOME:-$HOME/.local/share}/lazydeck/plugins" ./plugins

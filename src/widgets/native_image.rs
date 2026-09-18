@@ -705,10 +705,7 @@ fn prepared_cache_path(key: &PreparedImageKey) -> Result<PathBuf> {
 }
 
 fn prepared_cache_dir() -> Result<PathBuf> {
-    let home = env::var("HOME")?;
-    Ok(Path::new(&home)
-        .join(".cache/lazydeck")
-        .join("prepared-images"))
+    Ok(crate::paths::cache_dir().join("prepared-images"))
 }
 
 fn prepared_cache_key(key: &PreparedImageKey) -> Result<String> {

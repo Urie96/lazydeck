@@ -38,6 +38,7 @@ mod log;
 mod mode;
 mod page;
 mod path_codec;
+mod paths;
 mod plugin;
 mod select_handler;
 mod state;
@@ -146,8 +147,8 @@ fn resolve_config_path(path: &PathBuf) -> PathBuf {
     }
 }
 
-fn default_config_path() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config/lazydeck/init.lua"))
+fn default_config_path() -> PathBuf {
+    paths::config_file()
 }
 
 fn print_missing_config_help(config_file: &std::path::Path, explicit: bool) {
@@ -173,20 +174,13 @@ async fn main() -> anyhow::Result<()> {
 
     let config_file = if let Some(config_path) = cli.config_path.as_ref() {
         resolve_config_path(config_path)
-    } else if let Some(config_file) = default_config_path() {
-        config_file
     } else {
-        anyhow::bail!("HOME is not set; use --config to specify a lazydeck config file");
+        default_config_path()
     };
 
     if !config_file.is_file() {
         print_missing_config_help(&config_file, cli.config_path.is_some());
         return Ok(());
-    }
-
-    std::env::set_var("LAZYDECK_CONFIG_FILE", &config_file);
-    if let Some(dir) = config_file.parent() {
-        std::env::set_var("LAZYDECK_CONFIG_BASE_DIR", dir);
     }
 
     let local = task::LocalSet::new();
@@ -199,7 +193,13 @@ async fn main() -> anyhow::Result<()> {
 
             let events = events::Events::new();
 
-            let mut app = App::new(events.sender(), term, cli.initial_path, cli.eval_scripts);
+            let mut app = App::new(
+                events.sender(),
+                term,
+                cli.initial_path,
+                cli.eval_scripts,
+                Some(config_file),
+            );
 
             if let Err(e) = app.run(events).await {
                 term::restore();

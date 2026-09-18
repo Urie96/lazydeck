@@ -8,6 +8,7 @@ use ratatui::{
     prelude::*,
     widgets::{Block, BorderType, Paragraph},
 };
+use std::path::PathBuf;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -39,12 +40,15 @@ impl App {
         term: Term,
         initial_path: Vec<String>,
         startup_eval_scripts: Vec<String>,
+        config_file: Option<PathBuf>,
     ) -> Self {
         let mut state = State::new();
         let lua = Lua::new();
 
-        plugin::scope(&lua, &mut state, &event_sender, || plugin::init_lua(&lua))
-            .expect("Failed to initialize Lua");
+        plugin::scope(&lua, &mut state, &event_sender, || {
+            plugin::init_lua(&lua, config_file.as_deref())
+        })
+        .expect("Failed to initialize Lua");
 
         Self {
             lua,
