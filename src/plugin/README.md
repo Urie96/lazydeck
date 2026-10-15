@@ -74,7 +74,7 @@ scope(lua, state, sender, || {
 - `send_render_event()` - 触发渲染更新
 - `send_command()` - 发送内部命令
 
-## LC API
+## Deck API
 
 全局表 `deck` 提供以下子系统：
 
@@ -531,6 +531,7 @@ end
 | `deck.defer_fn(fn, ms)` | 延迟执行函数 |
 | `deck.cmd(cmd)` | 发送内部命令 |
 | `deck.split(s, sep)` | 分割字符串 |
+| `deck.target_os()` | 返回编译时确定的目标操作系统（如 `linux`/`macos`/`android`/`windows`） |
 | `deck.log(level, msg, ...)` | 写入日志 |
 | `deck.osc52_copy(text)` | 通过 OSC 52 复制到剪贴板 |
 | `deck.tbl_extend(behavior, ...)` | 浅合并多个表 |

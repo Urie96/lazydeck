@@ -45,6 +45,7 @@ pub fn init_lua(lua: &Lua, config_file: Option<&Path>) -> mlua::Result<()> {
     }
 
     load_preset!("system")?;
+    load_preset!("os")?;
     load_preset!("copy_from_neovim")?;
     load_preset!("socket")?;
     load_preset!("stdpath")?;

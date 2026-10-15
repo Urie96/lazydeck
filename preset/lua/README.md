@@ -29,6 +29,7 @@ preset/lua/
 ├── string.lua        # 字符串扩展方法
 ├── style.lua         # 样式 API 封装
 ├── system.lua        # 系统命令 API 封装
+├── os.lua            # 目标操作系统信息
 ├── time.lua          # 时间 API 封装
 ├── url.lua           # URL 编解码
 ├── util.lua          # 工具函数
@@ -571,6 +572,14 @@ deck.system.edit({ content = "hello", ext = "lua" }, function(content, err)
   print(content, err)
 end)
 deck.system.edit({ content = "hello", ext = ".lua" })
+```
+
+### os.lua - 目标操作系统
+
+返回 lazydeck 二进制编译时确定的目标操作系统，取值在运行期固定不变：
+
+```lua
+deck.target_os()  -- "linux" | "macos" | "android" | "windows" | "ios" | "freebsd" | ...
 ```
 
 ### socket.lua - 长连接 Socket

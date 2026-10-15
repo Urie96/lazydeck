@@ -152,7 +152,7 @@ return M
 }
 ```
 
-### LC API
+### Deck API
 
 全局表 `deck` 提供丰富的 API：
 

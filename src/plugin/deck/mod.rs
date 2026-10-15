@@ -373,6 +373,11 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         })?,
     )?;
 
+    // 编译期确定的目标操作系统（如 "linux" / "macos" / "android" / "windows"）
+    let target_os = lua
+        .create_function(|_, ()| Ok(std::env::consts::OS))?
+        .into_lua(lua)?;
+
     let deck = lua.create_table_from([
         ("defer_fn", defer_fn),
         ("keymap", keymap),
@@ -386,6 +391,7 @@ pub(super) fn register(lua: &Lua) -> mlua::Result<()> {
         ("http_server", http_server),
         ("cmd", cmd),
         ("split", split),
+        ("target_os", target_os),
         ("system", mlua::Value::Table(system_tbl)),
         ("socket", socket),
         ("stdpath", stdpath),

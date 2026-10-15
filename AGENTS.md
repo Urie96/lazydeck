@@ -61,10 +61,10 @@ lazydeck/
 
 ### 添加新功能
 
-1. 阅读相关模块的 README 文件（如添加 LC API 函数读 `src/plugin/README.md`，添加 UI 组件读 `src/widgets/README.md`）
+1. 阅读相关模块的 README 文件（如添加 Deck API 函数读 `src/plugin/README.md`，添加 UI 组件读 `src/widgets/README.md`）
 2. 阅读相关源代码文件（见"项目结构"部分）
 3. 阅读参考文件：
-   - 添加 LC API 函数：阅读 `src/plugin/deck/mod.rs` 了解注册方式，阅读现有 API 实现
+   - 添加 Deck API 函数：阅读 `src/plugin/deck/mod.rs` 了解注册方式，阅读现有 API 实现
    - 添加内部命令：阅读 `src/app.rs::handle_command()` 了解命令处理方式
    - 创建插件：参考 `preset/lua/` 下的模块和 `plugins/` 下的现有插件
 4. 修改代码
@@ -121,7 +121,7 @@ lazydeck                     # 启动 lazydeck，进入插件管理器
 
 ## 代码质量
 
-- 修改或添加新的 LC API 函数后，必须同步更新 `preset/lua/*.lua` 文件
+- 修改或添加新的 Deck API 函数后，必须同步更新 `preset/lua/*.lua` 文件
 - 不要删除看起来是故意添加的代码或功能
 
 ## 测试
@@ -178,7 +178,7 @@ tmux kill-session -t lazydeck-test
 
 ## 添加新功能
 
-### 添加新的 LC API 函数
+### 添加新的 Deck API 函数
 
 1. 在适当的 `src/plugin/deck/*.rs` 文件中添加函数
 2. 在 `src/plugin/deck/mod.rs` 的 `register()` 中注册
