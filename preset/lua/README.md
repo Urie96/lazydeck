@@ -248,7 +248,7 @@ deck.url.decode("hello%20world") -- "hello world"
 - 插件可选提供同步 `meta()` 函数返回 `{ icon = "󰏗", desc = "...", color = "cyan" }`；根路径展示插件时如果缓存不存在，会尝试加载插件并缓存 meta；插件不存在/`require` 失败时不写缓存，插件存在但未实现 `meta()` 时缓存空 meta 到 `lazydeck.plugin.meta` namespace
 - 根据 `cfg.keymap` 注册默认主模式键盘映射
 - 加载用户配置：由 Rust 入口在预设加载完后执行 `--config` 指定的文件（未指定时为默认的 `$XDG_CONFIG_HOME/lazydeck/init.lua`，即未设置 `XDG_CONFIG_HOME` 时的 `~/.config/lazydeck/init.lua`）；文件不存在时 Rust 入口会先打印配置提示并退出
-- 实现 `deck._list()` 和 `deck._preview()` 入口函数
+- 实现 `deck._list()` 和 `deck._preview()` 入口函数；进入插件页面时若该插件未实现 `list`（纯库插件，例如 `ai.lazydeck`），会设置空条目列表，页面显示为空而不是一直停留在 loading 占位
 
 根页面插件排序配置：
 

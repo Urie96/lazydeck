@@ -503,7 +503,13 @@ function config.setup(opt)
       plugin.list(path, function(entries)
         if deck.deep_equal(path, deck.api.get_current_path()) then deck.api.set_entries(nil, entries) end
       end)
+      return
     end
+
+    -- Library-only plugins (e.g. ai.lazydeck) may not implement `list`.
+    -- Still set an empty page so the UI leaves the loading placeholder.
+    deck.log('debug', 'Plugin {} has no list function; showing an empty page', path[1])
+    if deck.deep_equal(path, deck.api.get_current_path()) then deck.api.set_entries(nil, {}) end
   end
 
   function deck._preview()

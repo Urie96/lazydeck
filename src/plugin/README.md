@@ -631,3 +631,5 @@ end
 
 return M
 ```
+
+`list` 是可选的：只作为库被其他插件 `require` 的插件（例如 `ai.lazydeck`）不需要实现它。进入这类插件的页面时，`deck._list()` 会直接设置空条目列表，页面显示为空列表而不是一直停留在 loading 占位；`list(path, cb)` 如果不调用 `cb`，页面同样会一直显示 loading。
