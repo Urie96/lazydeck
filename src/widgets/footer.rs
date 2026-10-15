@@ -44,10 +44,10 @@ impl StatefulWidget for FooterWidget {
         let spans = vec![
             // Left powerline symbol with blue foreground
             Span::styled("", Style::default().fg(Color::Blue)),
-            // Counter text with blue background and white foreground
+            // Counter text with blue background and black foreground
             Span::styled(
                 format!(" {} ", counter_text),
-                Style::default().fg(Color::White).bg(Color::Blue),
+                Style::default().fg(Color::Black).bg(Color::Blue),
             ),
             // Right powerline symbol with blue foreground
             Span::styled("", Style::default().fg(Color::Blue)),
