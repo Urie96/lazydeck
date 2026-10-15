@@ -4,6 +4,7 @@ use libc::{sigaction, sigemptyset, SIGINT, SIG_IGN};
 use mlua::prelude::*;
 use std::fs;
 use std::mem;
+use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
@@ -88,8 +89,21 @@ fn run_interactive(
     // Temporarily restore the terminal to let the subprocess take control
     term::restore();
 
-    // Execute the command and wait for it to complete
-    let result = std::process::Command::new(program).args(args).status();
+    // Execute the command and wait for it to complete.
+    //
+    // 关键：父进程为了不被 Ctrl-C 杀死，把 SIGINT 设成了 SIG_IGN，而被忽略的信号处置会
+    // 跨 exec 继承。若不重置，交互式子进程（如 `journalctl -f`）会继承 SIG_IGN 从而完全
+    // 忽略 Ctrl-C、无法退出。这里在 exec 前把子进程的 SIGINT 恢复为默认处置，Ctrl-C 仍会
+    // 发送给整个前台进程组：lazydeck 忽略它，子进程正常终止。
+    let mut command = std::process::Command::new(program);
+    command.args(args);
+    unsafe {
+        command.pre_exec(|| {
+            libc::signal(libc::SIGINT, libc::SIG_DFL);
+            Ok(())
+        });
+    }
+    let result = command.status();
 
     // Restore the original SIGINT handler
     unsafe {
